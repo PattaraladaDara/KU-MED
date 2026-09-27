@@ -1,0 +1,3 @@
+ALTER TABLE "Appointment"
+ADD COLUMN "endsAt" TIMESTAMP(3),
+ADD COLUMN "result" TEXT;

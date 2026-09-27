@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model ApplicationMetadata {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Patient {
+  id             String            @id @default(cuid())
+  citizenId      String            @unique
+  studentId      String            @unique
+  status         String
+  title          String
+  firstName      String
+  lastName       String
+  birthDate      DateTime
+  gender         String
+  bloodGroup     String?
+  faculty        String
+  major          String
+  studyYear      String
+  phone          String
+  email          String            @unique
+  homeAddress    String?
+  currentAddress String?
+  coverage       String
+  coverageStatus String
+  allergyNotes   String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  treatments     TreatmentRecord[]
+  appointments   Appointment[]
+  payments       Payment[]
+
+  @@index([firstName, lastName])
+}
+
+model Appointment {
+  id          String   @id @default(cuid())
+  patientId   String
+  scheduledAt DateTime
+  endsAt      DateTime?
+  department  String
+  clinician   String?
+  reason      String
+  status      String   @default("scheduled")
+  notes       String?
+  result      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, scheduledAt])
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  patientId     String
+  paidAt        DateTime @default(now())
+  referenceCode String   @unique
+  description   String
+  amountSatang  Int
+  method        String
+  status        String   @default("paid")
+  createdAt     DateTime @default(now())
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, paidAt])
+}
+
+model TreatmentRecord {
+  id          String   @id @default(cuid())
+  patientId   String
+  visitedAt   DateTime @default(now())
+  department  String
+  diagnosis   String
+  clinician   String?
+  paymentType String?
+  visitType   String
+  visitNumber String?
+  temperature Float?
+  bloodPressure String?
+  pulse       Int?
+  oxygenSaturation Int?
+  weightKg    Float?
+  heightCm    Float?
+  chiefComplaint String?
+  diagnosisCode String?
+  diagnosisName String?
+  treatmentPlan String?
+  medicationOrders String?
+  createdAt   DateTime @default(now())
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, visitedAt])
+}
+
+model Evaluation {
+  id                  String   @id @default(cuid())
+  employeeCode        String
+  employeeName        String
+  evaluationRound     String
+  qualityScore        Int
+  responsibilityScore Int
+  serviceScore        Int
+  feedback            String?
+  evaluatorKey        String
+  createdAt           DateTime @default(now())
+
+  @@index([employeeCode, createdAt])
+}
+
+model UserSettings {
+  id                   String   @id @default(cuid())
+  userKey              String   @unique
+  displayName          String
+  role                 String
+  email                String
+  phone                String
+  notifyAnnouncements  Boolean  @default(true)
+  notifyMonthlyReports Boolean  @default(true)
+  notifySecurity       Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
