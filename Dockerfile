@@ -1,6 +1,7 @@
 FROM node:24-bookworm-slim AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV TZ=Asia/Bangkok
 
 FROM base AS dependencies
 COPY package.json package-lock.json ./

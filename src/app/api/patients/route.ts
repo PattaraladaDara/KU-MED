@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { isUniqueError, optionalText, text } from "@/lib/api-validation";
+import { parseBangkokDate } from "@/lib/thai-date";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as Record<string, unknown>;
     const required = ["citizenId", "studentId", "status", "title", "firstName", "lastName", "birthDate", "gender", "faculty", "major", "studyYear", "phone", "email", "coverage", "coverageStatus"];
     if (required.some(key => !text(body[key]))) return NextResponse.json({ error: "กรุณากรอกข้อมูลที่จำเป็นให้ครบ" }, { status: 400 });
-    const birthDate = new Date(text(body.birthDate));
+    const birthDate = parseBangkokDate(text(body.birthDate));
     if (Number.isNaN(birthDate.getTime()) || birthDate > new Date()) return NextResponse.json({ error: "วันเกิดไม่ถูกต้อง" }, { status: 400 });
     const citizenId = text(body.citizenId).replace(/\D/g, "");
     if (citizenId.length !== 13) return NextResponse.json({ error: "เลขประจำตัวประชาชนต้องมี 13 หลัก" }, { status: 400 });

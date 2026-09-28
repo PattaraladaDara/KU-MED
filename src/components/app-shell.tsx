@@ -25,12 +25,31 @@ export function AppShell({ children, assets }: { children: React.ReactNode; asse
   const [collapsed, setCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const scanBuffer = useRef("");
+  const scanTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
   useEffect(() => {
     function dismiss(event: MouseEvent) { if (!notificationRef.current?.contains(event.target as Node)) setNotificationsOpen(false); }
     function escape(event: KeyboardEvent) { if (event.key === "Escape") setNotificationsOpen(false); }
     document.addEventListener("click", dismiss); document.addEventListener("keydown", escape);
     return () => { document.removeEventListener("click", dismiss); document.removeEventListener("keydown", escape); };
   }, []);
+  useEffect(() => {
+    function receiveScan(event: KeyboardEvent) {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return;
+      if (event.key === "Enter") {
+        const match = scanBuffer.current.match(/^KUMED-(.+)$/);
+        scanBuffer.current = "";
+        if (match) { event.preventDefault(); router.push(`/scan/${encodeURIComponent(match[1])}`); }
+        return;
+      }
+      if (event.key.length !== 1) return;
+      scanBuffer.current += event.key.toUpperCase();
+      if (scanTimer.current) clearTimeout(scanTimer.current);
+      scanTimer.current = setTimeout(() => { scanBuffer.current = ""; }, 120);
+    }
+    document.addEventListener("keydown", receiveScan);
+    return () => { document.removeEventListener("keydown", receiveScan); if (scanTimer.current) clearTimeout(scanTimer.current); };
+  }, [router]);
   const hasNavigationIcons = navigation.every(item => assets.includes(item.icon));
   return <DemoSessionGate><div className={`app-shell${collapsed ? " sidebar-collapsed" : ""}${hasNavigationIcons ? "" : " missing-navigation-icons"}`}>
     <a className="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a>

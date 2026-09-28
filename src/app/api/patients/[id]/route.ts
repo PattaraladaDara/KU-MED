@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { optionalText, text } from "@/lib/api-validation";
+import { isUniqueError, optionalText, text } from "@/lib/api-validation";
+import { parseBangkokDate, parseBangkokDateTime } from "@/lib/thai-date";
+import { ICD10_ENTRIES } from "@/lib/icd10";
 
 export const runtime = "nodejs";
 
@@ -18,19 +20,26 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id:string }> }) {
   try {
     const { id } = await params; const body = await request.json() as Record<string,unknown>; const kind=text(body.kind);
-    if (!await getDb().patient.findUnique({where:{id},select:{id:true}})) return NextResponse.json({error:"ไม่พบข้อมูลผู้ใช้บริการ"},{status:404});
+    const patient=await getDb().patient.findUnique({where:{id},select:{id:true,coverage:true}});
+    if (!patient) return NextResponse.json({error:"ไม่พบข้อมูลผู้ใช้บริการ"},{status:404});
     if (kind==="treatment") {
-      const department=text(body.department),diagnosis=text(body.diagnosis),visitType=text(body.visitType);
-      if(!department||!diagnosis||!visitType)return NextResponse.json({error:"กรุณากรอกข้อมูลการรักษาให้ครบ"},{status:400});
+      const department=text(body.department),visitType=text(body.visitType);
+      if(!department||!visitType)return NextResponse.json({error:"กรุณากรอกข้อมูลการรักษาให้ครบ"},{status:400});
+      if(!["ห้องตรวจ1","ห้องตรวจ2","ห้องตรวจพิเศษ","ห้องตรวจ7 (ห้องหัตการ) ห้องสำหรับทำแผล"].includes(department))return NextResponse.json({error:"กรุณาเลือกห้องตรวจจากรายการที่กำหนด"},{status:400});
+      const diagnosisCode=text(body.diagnosisCode).toUpperCase();
+      const icd10=diagnosisCode?ICD10_ENTRIES.find((entry)=>entry.code===diagnosisCode):null;
+      if(diagnosisCode&&!icd10)return NextResponse.json({error:"กรุณาเลือกรหัส ICD-10 จากรายการที่มีในระบบ"},{status:400});
+      const diagnosis=icd10?.description||text(body.chiefComplaint)||"ไม่ระบุการวินิจฉัย";
       const numeric=(value:unknown)=>{const result=Number(value);return Number.isFinite(result)&&String(value).trim()?result:null;};
       const integer=(value:unknown)=>{const result=numeric(value);return result===null?null:Math.round(result);};
-      const record=await getDb().treatmentRecord.create({data:{patientId:id,visitedAt:new Date(text(body.visitedAt)||Date.now()),department,diagnosis,visitType,clinician:optionalText(body.clinician),paymentType:optionalText(body.paymentType),visitNumber:optionalText(body.visitNumber),temperature:numeric(body.temperature),bloodPressure:optionalText(body.bloodPressure),pulse:integer(body.pulse),oxygenSaturation:integer(body.oxygenSaturation),weightKg:numeric(body.weightKg),heightCm:numeric(body.heightCm),chiefComplaint:optionalText(body.chiefComplaint),diagnosisCode:optionalText(body.diagnosisCode),diagnosisName:optionalText(body.diagnosisName),treatmentPlan:optionalText(body.treatmentPlan),medicationOrders:optionalText(body.medicationOrders)}});
+      const visitedAtText=text(body.visitedAt);const visitedAt=visitedAtText?parseBangkokDateTime(visitedAtText):new Date();
+      const record=await getDb().treatmentRecord.create({data:{patientId:id,visitedAt,department,diagnosis,visitType,clinician:optionalText(body.clinician),paymentType:patient.coverage,visitNumber:optionalText(body.visitNumber),temperature:numeric(body.temperature),bloodPressure:optionalText(body.bloodPressure),pulse:integer(body.pulse),oxygenSaturation:integer(body.oxygenSaturation),weightKg:numeric(body.weightKg),heightCm:numeric(body.heightCm),chiefComplaint:optionalText(body.chiefComplaint),diagnosisCode:diagnosisCode||null,diagnosisName:icd10?.description??null,treatmentPlan:optionalText(body.treatmentPlan),medicationOrders:optionalText(body.medicationOrders)}});
       return NextResponse.json({record},{status:201});
     }
     if (kind==="appointment") {
-      const scheduledAt=new Date(text(body.scheduledAt)),department=text(body.department),reason=text(body.reason);
+      const scheduledAt=parseBangkokDateTime(text(body.scheduledAt)),department=text(body.department),reason=text(body.reason);
       if(Number.isNaN(scheduledAt.getTime())||!department||!reason)return NextResponse.json({error:"กรุณากรอกข้อมูลการนัดหมายให้ครบ"},{status:400});
-      const endsAtText=text(body.endsAt);const endsAt=endsAtText?new Date(endsAtText):null;
+      const endsAtText=text(body.endsAt);const endsAt=endsAtText?parseBangkokDateTime(endsAtText):null;
       const record=await getDb().appointment.create({data:{patientId:id,scheduledAt,endsAt:endsAt&&!Number.isNaN(endsAt.getTime())?endsAt:null,department,reason,clinician:optionalText(body.clinician),notes:optionalText(body.notes),result:optionalText(body.result),status:text(body.status)||"scheduled"}});
       return NextResponse.json({record},{status:201});
     }
@@ -42,4 +51,45 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
     return NextResponse.json({error:"ประเภทรายการไม่ถูกต้อง"},{status:400});
   } catch { return NextResponse.json({error:"ไม่สามารถบันทึกรายการได้"},{status:503}); }
+}
+
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id:string }> }) {
+  try {
+    const {id}=await params;const body=await request.json() as Record<string,unknown>;
+    if(text(body.kind)==="patient"){
+      const required=["citizenId","studentId","status","title","firstName","lastName","birthDate","gender","faculty","major","studyYear","phone","email","coverage","coverageStatus"];
+      if(required.some(key=>!text(body[key])))return NextResponse.json({error:"กรุณากรอกข้อมูลที่จำเป็นให้ครบ"},{status:400});
+      const citizenId=text(body.citizenId).replace(/\D/g,"");
+      if(citizenId.length!==13)return NextResponse.json({error:"เลขประจำตัวประชาชนต้องมี 13 หลัก"},{status:400});
+      const birthDate=parseBangkokDate(text(body.birthDate));
+      if(Number.isNaN(birthDate.getTime())||birthDate>new Date())return NextResponse.json({error:"วันเกิดไม่ถูกต้อง"},{status:400});
+      const patient=await getDb().patient.update({where:{id},data:{citizenId,studentId:text(body.studentId),status:text(body.status),title:text(body.title),firstName:text(body.firstName),lastName:text(body.lastName),birthDate,gender:text(body.gender),bloodGroup:optionalText(body.bloodGroup),faculty:text(body.faculty),major:text(body.major),studyYear:text(body.studyYear),phone:text(body.phone),email:text(body.email).toLowerCase(),homeAddress:optionalText(body.homeAddress),currentAddress:optionalText(body.currentAddress),coverage:text(body.coverage),coverageStatus:text(body.coverageStatus),allergyNotes:optionalText(body.allergyNotes)}});
+      return NextResponse.json({patient});
+    }
+    const recordId=text(body.recordId);
+    const existing=await getDb().treatmentRecord.findFirst({where:{id:recordId,patientId:id},select:{id:true}});
+    if(!existing)return NextResponse.json({error:"ไม่พบประวัติการรักษา"},{status:404});
+    const department=text(body.department),visitType=text(body.visitType);
+    if(!department||!visitType)return NextResponse.json({error:"กรุณากรอกข้อมูลการรักษาให้ครบ"},{status:400});
+    if(!["ห้องตรวจ1","ห้องตรวจ2","ห้องตรวจพิเศษ","ห้องตรวจ7 (ห้องหัตการ) ห้องสำหรับทำแผล"].includes(department))return NextResponse.json({error:"กรุณาเลือกห้องตรวจจากรายการที่กำหนด"},{status:400});
+    const diagnosisCode=text(body.diagnosisCode).toUpperCase();const icd10=diagnosisCode?ICD10_ENTRIES.find(entry=>entry.code===diagnosisCode):null;
+    if(diagnosisCode&&!icd10)return NextResponse.json({error:"กรุณาเลือกรหัส ICD-10 จากรายการที่มีในระบบ"},{status:400});
+    const diagnosis=icd10?.description||text(body.chiefComplaint)||"ไม่ระบุการวินิจฉัย";
+    const visitedAt=parseBangkokDateTime(text(body.visitedAt));
+    if(Number.isNaN(visitedAt.getTime()))return NextResponse.json({error:"วันที่เข้ารับบริการไม่ถูกต้อง"},{status:400});
+    const record=await getDb().treatmentRecord.update({where:{id:recordId},data:{visitedAt,department,diagnosis,visitType,visitNumber:optionalText(body.visitNumber),clinician:optionalText(body.clinician),chiefComplaint:optionalText(body.chiefComplaint),diagnosisCode:diagnosisCode||null,diagnosisName:icd10?.description??null,treatmentPlan:optionalText(body.treatmentPlan),medicationOrders:optionalText(body.medicationOrders)}});
+    return NextResponse.json({record});
+  } catch(error) {
+    if(isUniqueError(error))return NextResponse.json({error:"เลขประชาชน รหัสนิสิต หรืออีเมลนี้มีในระบบแล้ว"},{status:409});
+    return NextResponse.json({error:"ไม่สามารถแก้ไขข้อมูลได้"},{status:503});
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id:string }> }) {
+  try {
+    const {id}=await params;const body=await request.json() as Record<string,unknown>;const recordId=text(body.recordId);
+    const deleted=await getDb().treatmentRecord.deleteMany({where:{id:recordId,patientId:id}});
+    if(!deleted.count)return NextResponse.json({error:"ไม่พบประวัติการรักษา"},{status:404});
+    return NextResponse.json({deleted:true});
+  } catch { return NextResponse.json({error:"ไม่สามารถลบประวัติการรักษาได้"},{status:503}); }
 }
