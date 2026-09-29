@@ -1,0 +1,9 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getDb } from "@/lib/db";
+
+export const runtime="nodejs";
+type Params={params:Promise<{id:string;paymentId:string}>};
+
+export async function GET(_request:NextRequest,{params}:Params){const{id,paymentId}=await params;const payment=await getDb().payment.findFirst({where:{id:paymentId,patientId:id},select:{slipData:true,slipMimeType:true,slipFileName:true}});if(!payment?.slipData)return NextResponse.json({error:"ไม่พบไฟล์สลิป"},{status:404});return new NextResponse(new Uint8Array(payment.slipData),{headers:{"Content-Type":payment.slipMimeType||"application/octet-stream","Content-Disposition":`inline; filename*=UTF-8''${encodeURIComponent(payment.slipFileName||"payment-slip")}`,"Cache-Control":"private, no-store"}});}
+
+export async function POST(request:NextRequest,{params}:Params){try{const{id,paymentId}=await params;const payment=await getDb().payment.findFirst({where:{id:paymentId,patientId:id},select:{id:true,method:true}});if(!payment)return NextResponse.json({error:"ไม่พบรายการชำระเงิน"},{status:404});const form=await request.formData();const file=form.get("slip");if(!(file instanceof File)||file.size===0)return NextResponse.json({error:"กรุณาเลือกไฟล์สลิป"},{status:400});if(file.size>5*1024*1024)return NextResponse.json({error:"ไฟล์สลิปต้องมีขนาดไม่เกิน 5 MB"},{status:400});const allowed=["image/jpeg","image/png","image/webp","application/pdf"];if(!allowed.includes(file.type))return NextResponse.json({error:"รองรับไฟล์ JPG, PNG, WEBP หรือ PDF เท่านั้น"},{status:400});await getDb().payment.update({where:{id:payment.id},data:{slipFileName:file.name.slice(0,180),slipMimeType:file.type,slipData:Buffer.from(await file.arrayBuffer()),status:"paid",confirmedAt:new Date()}});return NextResponse.json({saved:true});}catch{return NextResponse.json({error:"ไม่สามารถบันทึกสลิปได้"},{status:503});}}

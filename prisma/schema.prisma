@@ -70,6 +70,14 @@ model Payment {
   amountSatang  Int
   method        String
   status        String   @default("paid")
+  receiptNumber String?  @unique
+  receivedSatang Int?
+  changeSatang   Int?
+  qrPayload      String?
+  confirmedAt    DateTime?
+  slipFileName   String?
+  slipMimeType   String?
+  slipData       Bytes?
   createdAt     DateTime @default(now())
   patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
 

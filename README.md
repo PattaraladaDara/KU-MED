@@ -70,6 +70,7 @@ npm start
 - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`: ค่า PostgreSQL ที่ Compose ใช้
 - `POSTGRES_PORT`: พอร์ตฐานข้อมูลบนเครื่อง (ค่าเริ่มต้น 5432)
 - `APP_PORT`: พอร์ตแอปบนเครื่อง (ค่าเริ่มต้น 3000)
+- `NEXT_PUBLIC_PROMPTPAY_ID`: เบอร์โทร 10 หลัก หรือเลขพร้อมเพย์/ผู้เสียภาษี 13 หลักของสถานพยาบาล ใช้สร้าง QR ที่ล็อกยอดเงิน ต้องกำหนดก่อน `docker compose up --build`
 
 Compose สร้าง `DATABASE_URL` ของ containers โดยใช้ hostname `db` หากเปลี่ยนค่าฐานข้อมูลให้ปรับ `DATABASE_URL` ใน `.env` สำหรับการพัฒนาในเครื่องด้วย ใช้รหัสผ่านที่ปลอดภัยต่อ URL หรือปรับ URL ให้ percent-encode อย่างถูกต้อง
 
