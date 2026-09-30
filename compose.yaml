@@ -38,6 +38,8 @@ services:
       target: runner
       args:
         NEXT_PUBLIC_PROMPTPAY_ID: ${NEXT_PUBLIC_PROMPTPAY_ID:-}
+        NEXT_PUBLIC_DEMO_DOCTOR_NAME: ${NEXT_PUBLIC_DEMO_DOCTOR_NAME:-}
+        NEXT_PUBLIC_DEMO_MEDICAL_LICENSE: ${NEXT_PUBLIC_DEMO_MEDICAL_LICENSE:-}
         KUMED_BUILD_ID: ${KUMED_BUILD_ID:-dev}
     restart: unless-stopped
     environment:
