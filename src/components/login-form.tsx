@@ -14,7 +14,7 @@ export function LoginForm() {
   const passwordRef = useRef<HTMLInputElement>(null);
   const roleRef = useRef<HTMLSelectElement>(null);
 
-  useEffect(() => { if (hasDemoSession()) router.replace("/"); }, [router]);
+  useEffect(() => { if (hasDemoSession()) router.replace("/dashboard"); }, [router]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -37,7 +37,7 @@ export function LoginForm() {
       beginDemoSession({username,role,displayName:doctor?(process.env.NEXT_PUBLIC_DEMO_DOCTOR_NAME||"แพทย์ผู้ตรวจ"):"ผู้ดูแลระบบ",medicalLicense:doctor?(process.env.NEXT_PUBLIC_DEMO_MEDICAL_LICENSE||""):""});
       setSubmitting(true);
       if (passwordRef.current) passwordRef.current.value = "";
-      router.replace("/");
+      router.replace("/dashboard");
     } catch {
       setError("เบราว์เซอร์ไม่สามารถเก็บสถานะการทดลองใช้งานได้ กรุณาอนุญาตการจัดเก็บข้อมูลเว็บไซต์แล้วลองใหม่");
     }
