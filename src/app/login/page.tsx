@@ -13,7 +13,6 @@ export default function LoginPage() {
     <section className="login-card" aria-labelledby="login-title">
       <div className="login-heading"><h1 id="login-title">เข้าสู่ระบบ</h1></div>
       <LoginForm />
-      <aside className="demo-account" aria-label="บัญชีสำหรับทดลองใช้งาน"><strong>บัญชีตัวอย่าง</strong><p>ชื่อผู้ใช้ <code>demo</code> · รหัสผ่าน <code>demo1234</code></p><p>สำหรับทดลองหน้าจอเท่านั้น</p></aside>
     </section>
     </div>
   </main>;

@@ -44,33 +44,33 @@ model Patient {
 }
 
 model Appointment {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   patientId   String
   scheduledAt DateTime
   endsAt      DateTime?
   department  String
   clinician   String?
   reason      String
-  status      String   @default("scheduled")
+  status      String    @default("scheduled")
   notes       String?
   result      String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  patient     Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId, scheduledAt])
 }
 
 model Payment {
-  id            String   @id @default(cuid())
-  patientId     String
-  paidAt        DateTime @default(now())
-  referenceCode String   @unique
-  description   String
-  amountSatang  Int
-  method        String
-  status        String   @default("paid")
-  receiptNumber String?  @unique
+  id             String    @id @default(cuid())
+  patientId      String
+  paidAt         DateTime  @default(now())
+  referenceCode  String    @unique
+  description    String
+  amountSatang   Int
+  method         String
+  status         String    @default("paid")
+  receiptNumber  String?   @unique
   receivedSatang Int?
   changeSatang   Int?
   qrPayload      String?
@@ -78,52 +78,80 @@ model Payment {
   slipFileName   String?
   slipMimeType   String?
   slipData       Bytes?
-  createdAt     DateTime @default(now())
-  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now())
+  patient        Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId, paidAt])
 }
 
 model TreatmentRecord {
-  id          String   @id @default(cuid())
-  patientId   String
-  visitedAt   DateTime @default(now())
-  department  String
-  diagnosis   String
-  clinician   String?
-  paymentType String?
-  visitType   String
-  visitNumber String?
-  temperature Float?
-  bloodPressure String?
-  pulse       Int?
+  id               String   @id @default(cuid())
+  patientId        String
+  visitedAt        DateTime @default(now())
+  department       String
+  diagnosis        String
+  clinician        String?
+  paymentType      String?
+  visitType        String
+  visitNumber      String?
+  temperature      Float?
+  bloodPressure    String?
+  pulse            Int?
   oxygenSaturation Int?
-  weightKg    Float?
-  heightCm    Float?
-  chiefComplaint String?
-  diagnosisCode String?
-  diagnosisName String?
-  treatmentPlan String?
+  weightKg         Float?
+  heightCm         Float?
+  chiefComplaint   String?
+  diagnosisCode    String?
+  diagnosisName    String?
+  treatmentPlan    String?
   medicationOrders String?
-  createdAt   DateTime @default(now())
-  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  patient          Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId, visitedAt])
 }
 
 model Evaluation {
-  id                  String   @id @default(cuid())
-  employeeCode        String
-  employeeName        String
-  evaluationRound     String
-  qualityScore        Int
-  responsibilityScore Int
-  serviceScore        Int
-  feedback            String?
-  evaluatorKey        String
-  createdAt           DateTime @default(now())
+  id                    String    @id @default(cuid())
+  employeeCode          String
+  employeeName          String
+  evaluationRound       String
+  qualityScore          Int
+  responsibilityScore   Int
+  serviceScore          Int
+  feedback              String?
+  evaluatorKey          String
+  systemScores          Json?
+  personnelScores       Json?
+  organizationScores    Json?
+  serviceUnit           String?
+  serviceType           String?
+  visitorType           String?
+  accessType            String?
+  waitTimeRange         String?
+  problemStage          String?
+  problemDetails        String?
+  improvementSuggestion String?
+  desiredService        String?
+  returnIntention       Int?
+  recommendationScore   Int?
+  anonymous             Boolean   @default(true)
+  followupStatus        String    @default("received")
+  assessmentType        String?
+  assessedUserKey       String?
+  assessedName          String?
+  assessedRole          String?
+  commonScores          Json?
+  roleScores            Json?
+  strengths             String?
+  developmentGoals      String?
+  supportNeeded         String?
+  actionPlan            String?
+  reviewDate            DateTime?
+  createdAt             DateTime  @default(now())
 
   @@index([employeeCode, createdAt])
+  @@index([assessedUserKey, createdAt])
 }
 
 model UserSettings {
@@ -138,4 +166,20 @@ model UserSettings {
   notifySecurity       Boolean  @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+}
+
+model StaffAccount {
+  id             String   @id @default(cuid())
+  username       String   @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  role           String
+  medicalLicense String   @unique
+  authProvider   String   @default("local")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([firstName, lastName])
 }

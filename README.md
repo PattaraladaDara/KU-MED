@@ -74,6 +74,19 @@ npm start
 - `STUDENT_LOOKUP_API_URL`: PATH ฝั่งเซิร์ฟเวอร์สำหรับค้นหาข้อมูลนิสิต ใส่ `{studentId}` ในตำแหน่งรหัส เช่น `https://student-api.example.ac.th/students/{studentId}`
 - `STUDENT_LOOKUP_API_TOKEN`: Bearer token ของ API (เว้นว่างได้ถ้าไม่ใช้)
 - `STUDENT_LOOKUP_MOCK`: ตั้งเป็น `true` เพื่อสาธิตการดึงข้อมูลโดยไม่เรียก API หรือใช้ข้อมูลจริง
+- `KU_ALLLOGIN_URL`: URL ฝั่งเซิร์ฟเวอร์สำหรับเริ่ม KU All-Login เมื่อได้รับจากผู้ดูแลระบบ ให้ใส่ใน `.env` โดยไม่ใช้ชื่อขึ้นต้นด้วย `NEXT_PUBLIC_`
+
+## ระบบบัญชีผู้ปฏิบัติงาน
+
+หน้าเข้าสู่ระบบแบ่งเป็น 2 ช่องทาง บุคลากรมหาวิทยาลัยใช้ปุ่ม KU All-Login ซึ่งจะพร้อมทำงานเมื่อกำหนด `KU_ALLLOGIN_URL` ส่วนแพทย์หรือผู้ปฏิบัติงานนอกระบบลงทะเบียนด้วยชื่อ นามสกุล ตำแหน่ง เลขใบอนุญาต Username และ Password ได้จากหน้าเดียวกัน บัญชีถูกบันทึกในตาราง `StaffAccount` และ Password ถูกแฮชด้วย scrypt ก่อนบันทึก
+
+เมื่อได้รับรายละเอียด KU All-Login ให้ใส่ URL ใน `.env`:
+
+```env
+KU_ALLLOGIN_URL=https://path-จริงที่ได้รับจากมหาวิทยาลัย
+```
+
+จากนั้น build container ใหม่ หากระบบจริงใช้ OAuth/OIDC และมี callback, client ID, client secret หรือรูปแบบข้อมูลผู้ใช้เพิ่มเติม ต้องนำเอกสารดังกล่าวมาเชื่อมใน `/api/auth/ku` ก่อนใช้งานจริง
 
 ## เชื่อมต่อ API ข้อมูลนิสิต
 
