@@ -5,7 +5,7 @@ const KEY = "ku-med:demo-session";
 const PROFILE_KEY = "ku-med:demo-profile";
 const EVENT = "ku-med:session-change";
 
-export type DemoSessionProfile = { username:string; role:string; displayName:string; medicalLicense:string };
+export type DemoSessionProfile = { username:string; role:string; displayName:string; medicalLicense:string; avatarUrl?:string|null };
 
 export function hasDemoSession(): boolean {
   try { return sessionStorage.getItem(KEY) === "active"; }

@@ -16,6 +16,9 @@ export function EvaluationForm() {
   const roleCriteria = assessedRole === "doctor" ? doctorCriteria : staffCriteria;
   const period = useMemo(() => { const now = new Date(), year = now.getFullYear() + 543; return `${now.getMonth() < 6 ? 1 : 2}/${year}`; }, []);
   const selfAssessment = assessmentType === "self";
+  const scoreKeys = [...commonCriteria.map(([key]) => `common.${key}`), ...roleCriteria.map(([key]) => `role.${key}`)];
+  const answeredCount = scoreKeys.filter(key => scores[key] >= 1 && scores[key] <= 5).length;
+  const scoreProgress = Math.round(answeredCount / scoreKeys.length * 100);
 
   function updateRole(role: "doctor" | "staff") { setAssessedRole(role); setScores(current => Object.fromEntries(Object.entries(current).filter(([key]) => key.startsWith("common.")))); }
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -34,6 +37,12 @@ export function EvaluationForm() {
     <header className="clinical-header evaluation-intro"><div><span className="evaluation-eyebrow">INTERNAL DEVELOPMENT</span><h1>แบบประเมินการทำงานและแผนพัฒนา</h1><p>สำหรับบุคลากรและแพทย์ ใช้ทบทวนผลงาน วางเป้าหมาย และติดตามการพัฒนา</p></div><aside><strong>เกณฑ์คะแนน</strong><span>1 ต้องพัฒนาเร่งด่วน · 2 ควรพัฒนา · 3 ตามมาตรฐาน · 4 ดี · 5 ดีเด่น</span></aside></header>
     {notice && <div className="evaluation-success" role="status"><strong>✓ บันทึกสำเร็จ</strong><span>{notice}</span></div>}
     <form onSubmit={submit} className="service-evaluation-form">
+      <section className="evaluation-progress-card" aria-label="ความคืบหน้าการให้คะแนน">
+        <div><strong>ความคืบหน้าการให้คะแนน</strong><span>ตอบแล้ว {answeredCount} จาก {scoreKeys.length} ข้อ</span></div>
+        <b>{scoreProgress}%</b>
+        <div className="evaluation-progress-track" role="progressbar" aria-label="ข้อที่ให้คะแนนแล้ว" aria-valuemin={0} aria-valuemax={scoreKeys.length} aria-valuenow={answeredCount}><span style={{ width: `${scoreProgress}%` }}/></div>
+        <small>{answeredCount === scoreKeys.length ? "ให้คะแนนครบแล้ว ตรวจสอบข้อมูลและแผนพัฒนาก่อนบันทึก" : "เลือกคะแนนในแต่ละหัวข้อ แล้วกรอกแผนพัฒนาต่อได้เลย"}</small>
+      </section>
       <section className="clinical-card evaluation-context"><header><span>ขั้นตอนที่ 1</span><div><h2>ข้อมูลการประเมิน</h2><p>ระบุรูปแบบ ผู้รับการประเมิน และรอบประเมิน</p></div></header><div className="evaluation-context-grid">
         <div className="field"><label htmlFor="assessmentType">รูปแบบการประเมิน</label><select id="assessmentType" value={assessmentType} onChange={event => { const next = event.target.value; setAssessmentType(next); if (next === "self") updateRole(initialRole); }}><option value="self">ประเมินตนเอง</option><option value="peer">ประเมินโดยเพื่อนร่วมงาน</option><option value="supervisor">ประเมินโดยหัวหน้างาน</option></select></div>
         <div className="field"><label htmlFor="assessedRole">ประเภทผู้รับการประเมิน</label><select id="assessedRole" value={assessedRole} onChange={event => updateRole(event.target.value as "doctor" | "staff")} disabled={selfAssessment}><option value="staff">บุคลากร</option><option value="doctor">แพทย์</option></select></div>
