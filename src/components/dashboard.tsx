@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { THAI_BUDDHIST_LOCALE, THAI_TIME_ZONE } from "@/lib/thai-date";
 
-type QueueStatus = "waiting" | "in_progress" | "completed";
+type QueueStatus = "waiting" | "in_progress" | "completed" | "no_show";
 type DashboardData = {
   updatedAt: string;
   summary: { visits: number; newPatients: number; appointments: number; completed: number; waiting: number };
@@ -19,7 +19,7 @@ const money = (satang: number) => (satang / 100).toLocaleString("th-TH", { minim
 const dateTime = (value: string) => new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE, { dateStyle: "long", timeStyle: "short", timeZone: THAI_TIME_ZONE }).format(new Date(value));
 const time = (value: string) => new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit", timeZone: THAI_TIME_ZONE }).format(new Date(value));
 const day = (value: string) => new Intl.DateTimeFormat("th-TH", { weekday: "short", day: "numeric", timeZone: THAI_TIME_ZONE }).format(new Date(value));
-const statusText: Record<QueueStatus, string> = { waiting: "รอตรวจ", in_progress: "กำลังตรวจ", completed: "ตรวจเสร็จแล้ว" };
+const statusText: Record<QueueStatus, string> = { waiting: "รอตรวจ", in_progress: "กำลังตรวจ", completed: "ตรวจเสร็จแล้ว", no_show: "ขาดนัดหมาย" };
 
 export function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null), [loading, setLoading] = useState(true), [error, setError] = useState(""), [reload, setReload] = useState(0);

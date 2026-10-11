@@ -5,5 +5,3 @@ export function addBusinessDays(value:string,amount:number){
 }
 
 export function isWeekday(value:string){const day=new Date(`${value}T12:00:00Z`).getUTCDay();return day>=1&&day<=5;}
-
-export function isClinicTime(value:string){const match=value.match(/^(\d{2}):(\d{2})$/);if(!match)return false;const minutes=Number(match[1])*60+Number(match[2]);return minutes>=9*60&&minutes<=15*60;}

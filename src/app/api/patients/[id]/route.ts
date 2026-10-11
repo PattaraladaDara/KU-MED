@@ -3,14 +3,17 @@ import { getDb } from "@/lib/db";
 import { isUniqueError, optionalText, text } from "@/lib/api-validation";
 import { parseBangkokDate, parseBangkokDateTime, THAI_TIME_ZONE } from "@/lib/thai-date";
 import { ICD10_ENTRIES } from "@/lib/icd10";
-import { addBusinessDays, isClinicTime, isWeekday } from "@/lib/business-date";
+import { addBusinessDays, isWeekday } from "@/lib/business-date";
+import { APPOINTMENT_REASONS, APPOINTMENT_ROOMS, isAppointmentTime } from "@/lib/appointment-options";
 
 export const runtime = "nodejs";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id:string }> }) {
   try {
     const { id } = await params;
-    const patient = await getDb().patient.findUnique({ where:{ id }, include:{
+    const db=getDb();const now=new Date();const today=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(now);const close=parseBangkokDateTime(`${today}T15:30`);const missedBefore=now>=close?close:new Date(close.getTime()-86400000);
+    await db.appointment.updateMany({where:{patientId:id,status:"scheduled",scheduledAt:{lt:missedBefore}},data:{status:"no_show"}});
+    const patient = await db.patient.findUnique({ where:{ id }, include:{
       treatments:{ orderBy:{ visitedAt:"desc" } }, appointments:{ orderBy:{ scheduledAt:"desc" } }, payments:{ orderBy:{ paidAt:"desc" },omit:{slipData:true} },
     } });
     if (!patient) return NextResponse.json({ error:"ไม่พบข้อมูลผู้ใช้บริการ" },{status:404});
@@ -33,15 +36,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const diagnosis=icd10?.description||text(body.chiefComplaint)||"ไม่ระบุการวินิจฉัย";
       const numeric=(value:unknown)=>{const result=Number(value);return Number.isFinite(result)&&String(value).trim()?result:null;};
       const integer=(value:unknown)=>{const result=numeric(value);return result===null?null:Math.round(result);};
-      const visitedAtText=text(body.visitedAt);const visitedAt=visitedAtText?parseBangkokDateTime(visitedAtText):new Date();
+      // Use authoritative server time so the service timestamp cannot be edited in the browser.
+      const visitedAt=new Date();
+      const appointmentId=text(body.appointmentId);const linkedAppointment=appointmentId?await getDb().appointment.findFirst({where:{id:appointmentId,patientId:id,status:{in:["scheduled","no_show"]}}}):null;
+      if(appointmentId&&!linkedAppointment)return NextResponse.json({error:"ไม่พบรายการนัดหมายที่รอบันทึกผลการตรวจ"},{status:404});
+      const visitDate=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(visitedAt);
+      if(linkedAppointment){const appointmentDate=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(linkedAppointment.scheduledAt);const today=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(new Date());if(appointmentDate!==today||visitDate!==appointmentDate)return NextResponse.json({error:"บันทึกการตรวจตามนัดได้เฉพาะในวันนัดหมาย"},{status:400});}
       const record=await getDb().treatmentRecord.create({data:{patientId:id,visitedAt,department,diagnosis,visitType,clinician:optionalText(body.clinician),paymentType:patient.coverage,visitNumber:optionalText(body.visitNumber),temperature:numeric(body.temperature),bloodPressure:optionalText(body.bloodPressure),pulse:integer(body.pulse),oxygenSaturation:integer(body.oxygenSaturation),weightKg:numeric(body.weightKg),heightCm:numeric(body.heightCm),chiefComplaint:optionalText(body.chiefComplaint),diagnosisCode:diagnosisCode||null,diagnosisName:icd10?.description??null,treatmentPlan:optionalText(body.treatmentPlan),medicationOrders:optionalText(body.medicationOrders)}});
+      const visitStart=parseBangkokDateTime(`${visitDate}T00:00`);const visitEnd=new Date(visitStart.getTime()+86400000);
+      await getDb().appointment.updateMany({where:appointmentId?{id:appointmentId,patientId:id}:{patientId:id,status:{in:["scheduled","no_show"]},scheduledAt:{gte:visitStart,lt:visitEnd}},data:{status:"completed"}});
       return NextResponse.json({record},{status:201});
     }
     if (kind==="appointment") {
-      const scheduledAt=parseBangkokDateTime(text(body.scheduledAt)),department=text(body.department),reason=text(body.reason);
-      if(Number.isNaN(scheduledAt.getTime())||!department||!reason)return NextResponse.json({error:"กรุณากรอกข้อมูลการนัดหมายให้ครบ"},{status:400});
-      const endsAtText=text(body.endsAt);const endsAt=endsAtText?parseBangkokDateTime(endsAtText):null;
-      const record=await getDb().appointment.create({data:{patientId:id,scheduledAt,endsAt:endsAt&&!Number.isNaN(endsAt.getTime())?endsAt:null,department,reason,clinician:optionalText(body.clinician),notes:optionalText(body.notes),result:optionalText(body.result),status:text(body.status)||"scheduled"}});
+      const scheduledDate=text(body.scheduledDate),scheduledTime=text(body.scheduledTime),department=text(body.department),reason=text(body.reason);
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate)||!isWeekday(scheduledDate))return NextResponse.json({error:"วันนัดหมายต้องเป็นวันจันทร์–ศุกร์เท่านั้น"},{status:400});
+      const today=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(new Date());
+      if(scheduledDate<today)return NextResponse.json({error:"วันที่นัดหมายต้องเป็นวันนี้หรือวันถัดไป"},{status:400});
+      if(!isAppointmentTime(scheduledTime))return NextResponse.json({error:"เลือกเวลาได้เฉพาะ 09:00–11:30 น. และ 13:00–15:00 น."},{status:400});
+      if(!(APPOINTMENT_ROOMS as readonly string[]).includes(department))return NextResponse.json({error:"กรุณาเลือกห้องตรวจจากรายการที่กำหนด"},{status:400});
+      if(!(APPOINTMENT_REASONS as readonly string[]).includes(reason))return NextResponse.json({error:"กรุณาเลือกเหตุผลการนัดหมายจากรายการที่กำหนด"},{status:400});
+      const scheduledAt=parseBangkokDateTime(`${scheduledDate}T${scheduledTime}`),endsAt=new Date(scheduledAt.getTime()+30*60000);
+      const record=await getDb().appointment.create({data:{patientId:id,scheduledAt,endsAt,department,reason,clinician:optionalText(body.clinician),notes:optionalText(body.notes),result:null,status:"scheduled"}});
       return NextResponse.json({record},{status:201});
     }
     if (kind==="payment") {
@@ -76,7 +91,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const existing=await getDb().appointment.findFirst({where:{id:appointmentId,patientId:id}});
       if(!existing)return NextResponse.json({error:"ไม่พบรายการนัดหมาย"},{status:404});
       if(!/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate)||!isWeekday(scheduledDate))return NextResponse.json({error:"วันนัดหมายต้องเป็นวันจันทร์–ศุกร์เท่านั้น"},{status:400});
-      if(!isClinicTime(scheduledTime))return NextResponse.json({error:"เวลานัดหมายต้องอยู่ระหว่าง 09:00–15:00 น."},{status:400});
+      if(!isAppointmentTime(scheduledTime))return NextResponse.json({error:"เลือกเวลาได้เฉพาะ 09:00–11:30 น. และ 13:00–15:00 น."},{status:400});
       const originalDate=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(existing.scheduledAt);
       if(scheduledDate<originalDate&&scheduledDate<addBusinessDays(originalDate,-3))return NextResponse.json({error:"การเลื่อนนัดให้เร็วขึ้นทำได้ไม่เกิน 3 วันทำการ"},{status:400});
       const scheduledAt=parseBangkokDateTime(`${scheduledDate}T${scheduledTime}`);

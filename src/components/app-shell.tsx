@@ -44,7 +44,7 @@ export function AppShell({ children, assets }: { children: React.ReactNode; asse
     document.addEventListener("keydown", receiveScan);
     return () => { document.removeEventListener("keydown", receiveScan); if (scanTimer.current) clearTimeout(scanTimer.current); };
   }, [router]);
-  const roleLabel = profile ? ({ doctor: "แพทย์", staff: "บุคลากร", admin: "บุคลากร" }[profile.role] || profile.role) : "ผู้ใช้งาน";
+  const roleLabel = profile ? ({ doctor: "แพทย์", staff: "บุคลากร", admin: "ผู้ดูแลระบบหลัก" }[profile.role] || profile.role) : "ผู้ใช้งาน";
   return <DemoSessionGate><div className={`app-shell${collapsed ? " sidebar-collapsed" : ""}`}>
     <a className="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a>
     <aside className="sidebar" aria-label="เมนูหลัก">

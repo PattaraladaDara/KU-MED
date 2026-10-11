@@ -48,7 +48,7 @@ export async function GET() {
         id: item.id, patientId: item.patientId, time: item.scheduledAt.toISOString(), department: item.department,
         clinician: item.clinician, reason: item.reason, studentId: item.patient.studentId,
         patientName: maskName(item.patient.firstName, item.patient.lastName),
-        status: completed ? "completed" : started ? "in_progress" : "waiting",
+        status: completed ? "completed" : item.status === "no_show" ? "no_show" : started ? "in_progress" : "waiting",
       };
     });
     const paid = payments.filter(item => item.status === "paid");
