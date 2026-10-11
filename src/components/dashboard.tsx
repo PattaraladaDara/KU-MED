@@ -34,10 +34,11 @@ export function Dashboard() {
   ] : [];
 
   return <div className="operations-dashboard">
-    <header className="operations-heading"><div><h1>แดชบอร์ดการให้บริการ</h1><p>ภาพรวมการดำเนินงานประจำวันที่ {new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE, { dateStyle: "long", timeZone: THAI_TIME_ZONE }).format(new Date())}</p></div><button type="button" onClick={() => { setLoading(true); setError(""); setReload(value => value + 1); }} disabled={loading}><span aria-hidden="true">↻</span>{loading ? "กำลังอัปเดต" : "อัปเดตข้อมูล"}</button></header>
+    <header className="operations-heading"><div><h1>แดชบอร์ดสรุปผลการให้บริการ</h1><p>สถานพยาบาล มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตกำแพงแสน</p></div><div className="dashboard-filter-controls"><span className="dashboard-period">{new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE, { dateStyle: "medium", timeZone: THAI_TIME_ZONE }).format(new Date())}</span><span className="dashboard-period">ทุกแผนกบริการ (All Units)</span><button type="button" aria-label="อัปเดตข้อมูล" title="อัปเดตข้อมูล" onClick={() => { setLoading(true); setError(""); setReload(value => value + 1); }} disabled={loading}><span aria-hidden="true">↻</span><span className="dashboard-refresh-label">{loading ? "กำลังอัปเดต" : "อัปเดตข้อมูล"}</span></button></div></header>
     {error && <div className="dashboard-error" role="alert"><span>{error}</span><button type="button" onClick={() => { setLoading(true); setError(""); setReload(value => value + 1); }}>ลองใหม่</button></div>}
     {!data && loading ? <DashboardSkeleton /> : data && <>
-      <section className="summary-cards" aria-label="สรุปประจำวัน">{cards.map(card => <article className={`summary-card ${card.tone}`} key={card.label}><div><span>{card.label}</span><strong>{number.format(card.value)} <small>คน</small></strong><p>{card.note}</p></div><i aria-hidden="true">{card.icon}</i></article>)}</section>
+      <section className="summary-cards" aria-label="สรุปประจำวัน">{cards.map(card => <article className={`summary-card ${card.tone}`} key={card.label}><div><span>{card.label}</span><strong>{number.format(card.value)} <small>คน</small></strong><p>{card.note}</p></div><i aria-hidden="true"><SummaryIcon icon={card.icon}/></i></article>)}</section>
+      <ServiceOverview data={data} />
       <div className="dashboard-primary-grid">
         <section className="dashboard-card queue-card"><CardHeader title="คิวและนัดหมายวันนี้" subtitle={`${data.queue.length} รายการจากฐานข้อมูล`} action={<Link href="/search">ค้นหาผู้ป่วย</Link>} />
           {data.queue.length ? <div className="queue-table-wrap"><table><thead><tr><th>เวลา</th><th>ผู้ป่วย</th><th>ห้องตรวจ</th><th>รายการนัด</th><th>สถานะ</th><th/></tr></thead><tbody>{data.queue.map(item => <tr key={item.id}><td className="queue-time">{time(item.time)} น.</td><td><strong>{item.patientName}</strong><small>{item.studentId}</small></td><td>{item.department}</td><td><span>{item.reason}</span><small>{item.clinician || "ยังไม่ระบุแพทย์"}</small></td><td><span className={`queue-status ${item.status}`}>{statusText[item.status]}</span></td><td><Link className="open-patient" href={`/patients/${item.patientId}`} aria-label={`เปิดข้อมูล ${item.patientName}`}>›</Link></td></tr>)}</tbody></table></div> : <EmptyState text="วันนี้ยังไม่มีรายการนัดหมาย" />}
@@ -56,6 +57,29 @@ export function Dashboard() {
   </div>;
 }
 
+function SummaryIcon({ icon }: { icon: string }) {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {icon === "✚" ? <path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/> : icon === "+" ? <><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M19 7v6M16 10h6"/></> : icon === "□" ? <><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 11h18M8 15h2M14 15h2"/></> : <><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></>}
+  </svg>;
+}
 function CardHeader({ title, subtitle, action }: { title: string; subtitle: string; action?: React.ReactNode }) { return <header className="dashboard-card-heading"><div><h2>{title}</h2><p>{subtitle}</p></div>{action}</header>; }
 function EmptyState({ text }: { text: string }) { return <div className="dashboard-empty"><span aria-hidden="true">▦</span><p>{text}</p></div>; }
 function DashboardSkeleton() { return <div className="dashboard-loading" role="status"><span>กำลังอ่านข้อมูลจากฐานข้อมูล…</span></div>; }
+
+function ServiceOverview({ data }: { data: DashboardData }) {
+  const maxVisits = Math.max(1, ...data.rooms.map(room => room.visits));
+  const maxWaiting = Math.max(1, ...data.rooms.map(room => room.waiting));
+  const hourlyCounts = Array.from({ length: 12 }, (_, index) => {
+    const hour = index + 8;
+    const count = data.queue.filter(item => Number(new Intl.DateTimeFormat("en-GB", { hour: "2-digit", hourCycle: "h23", timeZone: THAI_TIME_ZONE }).format(new Date(item.time))) === hour).length;
+    return { hour, count, percentage: data.queue.length ? Math.round(count / data.queue.length * 100) : 0 };
+  });
+  return <div className="dashboard-overview-grid">
+    <section className="dashboard-service-chart" aria-labelledby="service-chart-title">
+      <header className="service-chart-heading"><div><h2 id="service-chart-title">จำนวนผู้เข้าใช้บริการในแต่ละห้องตรวจ</h2><p>เปรียบเทียบผู้รับบริการและผู้รอตรวจจากข้อมูลวันนี้</p></div><div className="service-chart-legend"><span><i />ผู้รับบริการ<br />(คน)</span><span><i />รอตรวจ<br />(คน)</span></div></header>
+      <div className="service-bar-chart"><div className="service-gridlines" aria-hidden="true">{Array.from({ length: 5 }, (_, index) => <span key={index} />)}</div><div className="service-bar-groups">{data.rooms.map(room => <div className="service-bar-group" key={room.name}><div className="service-bar-pair"><span className="service-bar visits" style={{ height: `${room.visits / maxVisits * 100}%` }} tabIndex={0} aria-label={`${room.name}: รับบริการ ${room.visits} คน`}><span className="service-bar-tooltip">{room.visits} คน</span></span><span className="service-bar waiting" style={{ height: `${room.waiting / maxWaiting * 100}%` }} tabIndex={0} aria-label={`${room.name}: รอตรวจ ${room.waiting} คน`}><span className="service-bar-tooltip">{room.waiting} คน</span></span></div><span className="service-bar-label">{room.name}</span></div>)}</div></div>
+      <footer className="service-chart-footer"><p><span aria-hidden="true">◷</span> ข้อมูลจำนวนผู้รับบริการและคิวรอตรวจของแต่ละห้อง</p><strong>อัปเดตข้อมูลล่าสุด: {time(data.updatedAt)} น.</strong></footer>
+    </section>
+    <section className="dashboard-hourly-chart" aria-labelledby="hourly-chart-title"><header><h2 id="hourly-chart-title">ช่วงเวลาที่หนาแน่น</h2><p>สัดส่วนนัดหมายวันนี้แยกตามชั่วโมง</p></header><div className="dashboard-hourly-list">{hourlyCounts.map(item => <div className={`dashboard-hourly-row${item.percentage >= 75 ? " peak" : ""}`} key={item.hour}><span>{String(item.hour).padStart(2, "0")}:00</span><div className="dashboard-hourly-track" role="meter" aria-label={`นัดหมาย ${item.hour}:00 จำนวน ${item.count} รายการ`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={item.percentage}><i style={{ width: `${item.percentage}%` }} /></div><strong>{item.percentage}%</strong></div>)}</div><aside className="dashboard-hourly-note"><strong>ข้อแนะนำ</strong><p>ช่วงเวลา 17.00–19.00 น. ควรเตรียมความพร้อมสำหรับเคสฉุกเฉิน</p></aside></section>
+  </div>;
+}
