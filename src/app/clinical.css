@@ -949,3 +949,61 @@
  .patient-profile-page :is(.general-heading,.record-heading)::after,
  .patient-profile-page .profile-general-grid .clinical-section::after { transition:background-position 700ms ease,opacity 300ms ease; }
 }
+
+/* Keep the legacy patient heading readable on the dark profile banner. */
+.patient-profile-page .profile-hero > div:not(.profile-avatar) { min-width:0; }
+.patient-profile-page .profile-hero h1 { color:#ffffff; text-shadow:0 1px 2px #071f3240; }
+.patient-profile-page .profile-hero p { color:#b9f2da; font-weight:600; }
+
+/* Medical certificate registry and audit state. */
+@media screen {
+ .certificate-loading { padding:28px; text-align:center; color:#58766b; }
+ .certificate-registry-status { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:18px 0; }
+ .certificate-registry-status>div { padding:14px 16px; border:1px solid #cfe2d8; border-radius:12px; background:#f4faf7; }
+ .certificate-registry-status span { display:block; margin-bottom:5px; color:#668076; font-size:12px; }
+ .certificate-registry-status strong { display:block; color:#173d32; font-size:15px; }
+ .certificate-rule-notice { margin:14px 0; padding:12px 14px; border-radius:10px; background:#fff3f1; border:1px solid #f0c5bf; color:#a23d32; }
+}
+@media screen and (max-width:640px) { .certificate-registry-status { grid-template-columns:1fr; } }
+.medical-certificate-print { position:relative; }
+.certificate-document-number { position:absolute; top:0; right:0; font-size:10pt; color:#273b34; }
+.certificate-copy-label { position:absolute; top:30mm; right:12mm; padding:2mm 5mm; border:1px solid #555; color:#555; font-size:16pt; font-weight:700; transform:rotate(-8deg); }
+.certificate-print-audit { position:absolute; right:0; bottom:0; color:#555; font-size:8pt; }
+
+/* Official A4 medical certificate typography and stable document flow. */
+@media print {
+  .medical-certificate-print {
+    position:absolute!important;
+    inset:0!important;
+    box-sizing:border-box!important;
+    display:block!important;
+    width:210mm!important;
+    height:297mm!important;
+    min-height:297mm!important;
+    overflow:hidden!important;
+    padding:24mm 24mm 20mm!important;
+    color:#111!important;
+    background:#fff!important;
+    font-family:"TH Sarabun New","THSarabunNew","Sarabun",sans-serif!important;
+    font-size:16pt!important;
+    font-weight:400!important;
+    line-height:1.45!important;
+  }
+  .medical-certificate-print header { display:block!important; margin:0!important; padding:0!important; border:0!important; text-align:center!important; }
+  .medical-certificate-print h1 { margin:0 0 2mm!important; font-family:inherit!important; font-size:20pt!important; font-weight:700!important; line-height:1.3!important; }
+  .medical-certificate-print header p { margin:0!important; font-family:inherit!important; font-size:18pt!important; line-height:1.3!important; }
+  .certificate-document-number { position:static!important; margin:0 0 2mm!important; color:#111!important; font-size:14pt!important; text-align:right!important; }
+  .certificate-issued { margin:8mm 0 5mm!important; font-size:16pt!important; text-align:right!important; }
+  .certificate-content { display:block!important; margin:0!important; padding:0!important; }
+  .certificate-content p { margin:2.5mm 0!important; font-size:16pt!important; line-height:1.55!important; }
+  .certificate-check { padding-left:5mm!important; }
+  .certificate-treatment-note { margin-top:5mm!important; text-indent:12mm; }
+  .certificate-fill { padding:0 1.5mm .2mm!important; font-weight:400!important; }
+  .medical-certificate-print footer { display:grid!important; grid-template-columns:1fr 1fr!important; align-items:start!important; gap:18mm!important; margin:16mm 0 0!important; padding:0!important; }
+  .certificate-signature { display:grid!important; min-width:0!important; justify-items:center!important; gap:0!important; font-size:16pt!important; line-height:1.45!important; }
+  .certificate-signature strong { font-size:16pt!important; font-weight:400!important; }
+  .certificate-signature small { font-size:16pt!important; }
+  .certificate-official-note { margin:14mm 0 0!important; font-size:16pt!important; line-height:1.45!important; }
+  .certificate-copy-label { top:20mm!important; right:18mm!important; font-size:16pt!important; }
+  .certificate-print-audit { right:24mm!important; bottom:10mm!important; font-family:inherit!important; font-size:11pt!important; }
+}

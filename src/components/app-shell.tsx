@@ -19,26 +19,24 @@ const navigation = [
 
 function SearchSubmenu() {
   const pathname = usePathname(), params = useSearchParams();
-  const [patientPath,setPatientPath] = useState("");
+  const patientId = pathname.match(/^\/patients\/([^/]+)$/)?.[1] || "";
+  const [patient,setPatient] = useState<{title:string;firstName:string;lastName:string;studentId:string}|null>(null);
   useEffect(()=>{
+    if(!patientId)return;
     let active=true;
-    try {
-      if (/^\/patients\/[^/]+$/.test(pathname)) { sessionStorage.setItem("ku-med:selected-patient",pathname); queueMicrotask(()=>{if(active)setPatientPath(pathname);}); }
-      else { const saved=sessionStorage.getItem("ku-med:selected-patient") || ""; queueMicrotask(()=>{if(active)setPatientPath(/^\/patients\/[^/]+$/.test(saved)?saved:"");}); }
-    } catch { queueMicrotask(()=>{if(active)setPatientPath("");}); }
+    fetch(`/api/patients/${encodeURIComponent(patientId)}`).then(async response=>{if(!response.ok)throw new Error();return response.json();}).then(result=>{if(active)setPatient(result.patient);}).catch(()=>{});
     return()=>{active=false;};
-  },[pathname]);
-  if (pathname !== "/search" && !pathname.startsWith("/patients/")) return null;
-  const selected = params.get("tab") || (pathname.startsWith("/patients/") ? "general" : "");
-  const base = pathname.startsWith("/patients/") ? pathname : patientPath || "/search";
-  return <div className="search-submenu" aria-label="เมนูย่อยค้นหา">{[["general","ข้อมูลทั่วไป"],["treatments","ประวัติการรักษา"],["appointments","การนัดหมาย"],["payments","การชำระเงิน"]].map(([tab,label]) => <Link key={tab} href={`${base}?tab=${tab}`} aria-current={selected===tab?"page":undefined} title={label}><span className="submenu-dot" aria-hidden="true"/><span className="submenu-label">{label}</span></Link>)}</div>;
+  },[patientId]);
+  if (!patientId) return null;
+  const selected = params.get("tab") || "general";
+  const maskedStudentId=patient?.studentId?`${patient.studentId.slice(0,2)}${"•".repeat(Math.max(1,patient.studentId.length-6))}${patient.studentId.slice(-4)}`:"กำลังโหลดข้อมูล";
+  return <div className="search-submenu" aria-label="หมวดข้อมูลผู้ป่วย"><div className="search-submenu-patient"><small>กำลังดูผู้ป่วย</small><strong>{patient?`${patient.title}${patient.firstName} ${patient.lastName.charAt(0)}.`:"กำลังโหลด..."}</strong><span>{maskedStudentId}</span></div>{[["general","ข้อมูลทั่วไป"],["treatments","ประวัติการรักษา"],["appointments","การนัดหมาย"],["payments","การชำระเงิน"]].map(([tab,label]) => <Link key={tab} href={`${pathname}?tab=${tab}`} aria-current={selected===tab?"page":undefined} title={`เปิด${label}ของผู้ป่วยคนปัจจุบัน`}><span className="submenu-dot" aria-hidden="true"/><span className="submenu-label">{label}</span></Link>)}</div>;
 }
 
 export function AppShell({ children, assets }: { children: React.ReactNode; assets: DesignAssetName[] }) {
   const pathname = usePathname();
   const router = useRouter();
   function logout() {
-    try { sessionStorage.removeItem("ku-med:selected-patient"); } catch {}
     endDemoSession();
     router.replace("/login");
   }
