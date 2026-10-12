@@ -58,6 +58,34 @@
   .appointment-print-slip footer { margin-top:auto; padding-top:2.5mm; border-top:.3mm dashed #a9b8b2; text-align:center; }.appointment-print-slip footer p { font-size:6.5pt; line-height:1.35; }.slip-stamp { display:grid; gap:.5mm; margin:2mm 0; padding:1.5mm; border:.3mm solid #9cb0a8; border-radius:1.5mm; }.slip-stamp span { color:#687972; font-size:6pt; }.slip-stamp strong { font-size:7pt; }.appointment-print-slip footer>small { color:#60716a; font-size:6pt; }
 }
 
+/* Final 80 mm thermal appointment ticket layout. */
+@page appointment-slip { size:80mm 145mm; margin:0; }
+@media print {
+  html:has(.appointment-print-slip),body:has(.appointment-print-slip){width:80mm!important;height:145mm!important;min-height:145mm!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#fff!important}
+  .appointment-print-slip,.appointment-print-slip *{visibility:visible!important}
+  .appointment-print-slip{position:fixed!important;inset:0!important;z-index:99999!important;box-sizing:border-box!important;display:block!important;width:80mm!important;height:145mm!important;max-height:145mm!important;margin:0!important;padding:4mm 4mm 3mm!important;overflow:hidden!important;border:0!important;background:#fff!important;color:#111!important;font-family:"TH Sarabun New","Sarabun",sans-serif!important;print-color-adjust:exact;-webkit-print-color-adjust:exact;break-inside:avoid!important;page-break-inside:avoid!important;page-break-after:avoid!important}
+  .appointment-print-slip::before{content:none!important}
+  .appointment-print-slip .thermal-ticket-header{display:flex!important;align-items:center!important;gap:3mm!important;height:15mm!important;margin:0!important;padding:0 0 2mm!important;border:0!important;border-bottom:.25mm solid #555!important;background:#fff!important;color:#111!important}
+  .thermal-ticket-header img{width:13mm!important;height:13mm!important;object-fit:contain!important;filter:grayscale(1) contrast(1.15)}
+  .thermal-ticket-header div{display:grid!important;gap:.4mm!important;min-width:0!important}
+  .thermal-ticket-header strong{color:#111!important;font:700 11pt/1.15 "TH Sarabun New","Sarabun",sans-serif!important;white-space:nowrap!important}
+  .thermal-ticket-header span{margin:0!important;color:#111!important;font:400 9pt/1.15 "TH Sarabun New","Sarabun",sans-serif!important}
+  .appointment-print-slip .thermal-ticket-title{margin:2mm 0 1mm!important;color:#111!important;font:700 15pt/1.15 "TH Sarabun New","Sarabun",sans-serif!important;text-align:center!important}
+  .appointment-print-slip .thermal-ticket-body{display:block!important;height:auto!important;margin:0!important;padding:0!important;overflow:hidden!important}
+  .thermal-ticket-body dl{display:grid!important;gap:0!important;margin:0!important;padding:0!important}
+  .thermal-ticket-body dl>div{display:grid!important;grid-template-columns:24mm minmax(0,1fr)!important;gap:2mm!important;align-items:start!important;min-height:12mm!important;padding:2mm 0!important;border-bottom:.2mm dotted #aaa!important}
+  .thermal-ticket-body dt{color:#333!important;font-size:9.5pt!important;line-height:1.2!important}
+  .thermal-ticket-body dd{display:grid!important;gap:.5mm!important;margin:0!important;color:#111!important;font-size:10.5pt!important;font-weight:700!important;line-height:1.2!important;overflow-wrap:anywhere!important}
+  .thermal-ticket-body dd span{color:#222!important;font-size:9pt!important;font-weight:400!important;line-height:1.2!important}
+  .thermal-ticket-body dd strong{color:#111!important;font-size:9.5pt!important;font-weight:700!important;line-height:1.2!important}
+  .thermal-ticket-body .ticket-barcode{display:grid!important;justify-items:center!important;gap:.8mm!important;margin:2mm 0 1.5mm!important}
+  .thermal-ticket-body .ticket-barcode svg{display:block!important;width:50mm!important;height:9mm!important;fill:#111!important}
+  .thermal-ticket-body .ticket-barcode span{color:#111!important;font:400 7pt/1 monospace!important;letter-spacing:.3mm!important}
+  .thermal-ticket-body footer{display:block!important;margin:0!important;padding:2mm 0 0!important;border:0!important;border-top:.25mm solid #555!important;background:#fff!important;color:#111!important;text-align:center!important}
+  .thermal-ticket-body footer p{margin:0 0 .7mm!important;color:#111!important;font-size:7.5pt!important;line-height:1.15!important}
+  .thermal-ticket-body footer address{margin:1mm 0 0!important;color:#333!important;font-size:6.5pt!important;font-style:normal!important;line-height:1.2!important}
+}
+
 /* Appointment-to-treatment traceability */
 .treatment-origin-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem}
 .treatment-origin{display:inline-flex;align-items:center;min-height:30px;padding:.3rem .75rem;border-radius:999px;font-size:.82rem;font-weight:700;line-height:1.2}
@@ -118,7 +146,8 @@
 .record-modal > header .modal-close-button { display:grid; flex:0 0 34px; place-items:center; padding:0; line-height:1; }
 .record-modal > header .modal-close-button span { display:block; width:20px; height:20px; font:400 24px/18px Arial,sans-serif; text-align:center; }
 .payment-form .full { grid-column:1/-1; }.cash-change { display:flex; align-items:center; justify-content:space-between; min-height:70px; padding:12px 16px; border:1px solid #a7dbc8; border-radius:10px; background:#ecfaf5; }.cash-change span { color:#54756a; font-size:12px; }.cash-change span small { color:#789088; font-size:10px; }.cash-change strong { color:#08785e; font-size:22px; }.cash-change.invalid { border-color:#efb5b0; background:#fff4f3; }.cash-change.invalid strong { color:#b42318; }.payment-note { display:grid; gap:3px; padding:14px 16px; border:1px solid #b9ddcf; border-radius:10px; background:#eff9f5; }.payment-note strong { color:#08785e; }.payment-note span { color:#60756e; font-size:12px; }.transfer-qr { display:flex; align-items:center; gap:20px; padding:18px; border:1px solid #cde2da; border-radius:12px; background:#fff; }.transfer-qr img,.qr-placeholder { box-sizing:border-box; width:180px; height:180px; flex:none; border:1px solid #d8e5e0; border-radius:10px; }.qr-placeholder { display:grid; place-items:center; padding:20px; background:#f4f7f6; color:#8a9994; font-size:12px; text-align:center; }.transfer-qr>div:last-child { display:grid; gap:7px; }.transfer-qr strong { color:#173d32; font-size:18px; }.transfer-qr span { color:#08785e; font-size:17px; font-weight:700; }.transfer-qr small { color:#687a74; line-height:1.5; }.payment-list { display:grid; gap:12px; margin-top:22px; }.payment-card { padding:17px 18px; border:1px solid #dfe7e4; border-radius:12px; background:#fff; }.payment-main { display:flex; align-items:center; justify-content:space-between; gap:20px; }.payment-main time { color:#71817b; font-size:11px; }.payment-main h3 { margin-top:3px; font-size:15px; }.payment-main p,.payment-main small { display:block; margin-top:3px; color:#71817b; font-size:11px; }.payment-main>div:last-child { display:grid; justify-items:end; gap:6px; }.payment-main>div:last-child>strong { color:#08785e; font-size:18px; }.payment-status { border-radius:999px; padding:4px 9px; font-size:10px; font-weight:700; }.payment-status.paid { background:#dcf6eb; color:#08785e; }.payment-status.pending { background:#fff2ce; color:#9a6500; }.payment-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:13px; padding-top:12px; border-top:1px solid #edf1ef; }.payment-actions .secondary-button,.payment-actions .receipt-print-button { display:inline-grid; min-height:34px; place-items:center; padding:6px 12px; font-size:12px; text-decoration:none; }.payment-actions .secondary-button { color:#334155; }.slip-upload { cursor:pointer; }.slip-upload input { position:absolute; width:1px; height:1px; overflow:hidden; opacity:0; }
-@media(max-width:640px) { .transfer-qr { flex-direction:column; text-align:center; }.payment-main { align-items:flex-start; }.payment-actions { justify-content:stretch; }.payment-actions>* { flex:1; } }
+.patient-profile-page .payment-main .payment-date-badge{grid-row:1/6;width:72px;min-height:74px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 5px;border:1px solid #d8e1dd;border-radius:12px;background:linear-gradient(150deg,#ffffff,var(--patient-soft));color:#53635d;line-height:1;text-align:center;box-shadow:inset 0 1px 0 #ffffff,0 2px 6px #173d3208}.patient-profile-page .payment-date-badge small{display:block;margin:0;color:#53635d;font-size:10px;line-height:1.1}.patient-profile-page .payment-date-badge strong{display:block;margin:0;color:#17231f;font-size:24px;line-height:1;font-weight:700}.patient-profile-page .payment-date-badge span{display:block;margin:0;color:#53635d;font-size:9px;line-height:1.15;white-space:nowrap}.patient-profile-page .payment-paid-time{color:#52615c;font-weight:600}
+@media(max-width:640px) { .transfer-qr { flex-direction:column; text-align:center; }.payment-main { align-items:flex-start; }.payment-actions { justify-content:stretch; }.payment-actions>* { flex:1; }.patient-profile-page .payment-main .payment-date-badge{width:60px;min-height:68px;padding:7px 3px}.patient-profile-page .payment-date-badge span{font-size:8px} }
 .edit-record-form { margin:0; border:0; border-radius:0; background:#fff; }
 .record-summary { padding-bottom:22px; page:medical-certificate; }
 .record-summary dl { display:grid; grid-template-columns:1fr 1fr; gap:0; margin:20px 24px; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; }
@@ -1062,4 +1091,29 @@
   .certificate-signature strong,.certificate-signature small { display:block!important; font-size:16pt!important; font-weight:400!important; }
   .certificate-official-note { margin:12mm 0 0!important; font-size:16pt!important; line-height:1.45!important; break-inside:avoid!important; }
   .certificate-print-audit { position:static!important; display:block!important; margin-top:8mm!important; color:#555!important; font-family:inherit!important; font-size:11pt!important; text-align:right!important; }
+}
+
+/* Keep this final override last: legacy ticket rules above use the former 90 mm card size. */
+@page appointment-slip { size:80mm 120mm; margin:0; }
+@media print {
+  html:has(.appointment-print-slip),body:has(.appointment-print-slip){width:80mm!important;height:120mm!important;min-height:120mm!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#fff!important}
+  .appointment-print-slip{position:fixed!important;inset:0!important;z-index:99999!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important;width:80mm!important;height:120mm!important;max-height:120mm!important;margin:0!important;padding:3mm 3mm 2.5mm!important;overflow:hidden!important;border:0!important;background:#fff!important;color:#111827!important;font-family:"TH Sarabun New","Sarabun",sans-serif!important;font-size:9pt!important;line-height:1.15!important;break-inside:avoid!important;page-break-inside:avoid!important;page-break-after:avoid!important}
+  .appointment-print-slip::before{content:none!important}
+  .appointment-print-slip .thermal-ticket-header{display:flex!important;align-items:center!important;box-sizing:border-box!important;height:13mm!important;gap:2.5mm!important;margin:0!important;padding:0 1.5mm 1.5mm!important;border-bottom:.2mm solid #737373!important}
+  .thermal-ticket-header img{width:10.5mm!important;height:10.5mm!important;object-fit:contain!important;filter:none!important}
+  .thermal-ticket-header strong{color:#111827!important;font-size:8.5pt!important;font-weight:600!important;line-height:1.15!important}
+  .thermal-ticket-header span{color:#111827!important;font-size:7.5pt!important;line-height:1.1!important}
+  .appointment-print-slip .thermal-ticket-title{display:none!important}
+  .appointment-print-slip .thermal-ticket-body{display:flex!important;flex:1!important;flex-direction:column!important;height:auto!important;margin:0!important;padding:0!important;overflow:hidden!important}
+  .thermal-ticket-body dl{display:grid!important;grid-template-rows:repeat(5,1fr) 1.25fr!important;flex:1!important;gap:0!important;margin:0!important;padding:3mm 2mm 1.5mm!important}
+  .thermal-ticket-body dl>div{display:block!important;min-height:0!important;padding:1mm 0!important;border:0!important}
+  .thermal-ticket-body dt{margin:0 0 .8mm!important;color:#111827!important;font-size:8.5pt!important;font-weight:400!important;line-height:1.15!important}
+  .thermal-ticket-body dd{display:grid!important;gap:.3mm!important;margin:0!important;padding-left:2mm!important;color:#111827!important;font-size:9pt!important;font-weight:600!important;line-height:1.15!important}
+  .thermal-ticket-body dd span{color:#111827!important;font-size:8pt!important;line-height:1.15!important}
+  .thermal-ticket-body dd strong{color:#111827!important;font-size:8pt!important;line-height:1.15!important}
+  .thermal-ticket-body footer{display:grid!important;grid-template-columns:.95fr 1.35fr!important;gap:3mm!important;margin:0!important;padding:1.5mm 1mm 0!important;border-top:.2mm solid #737373!important;color:#111827!important;text-align:left!important}
+  .thermal-ticket-body footer>div{display:grid!important;align-content:start!important;gap:.25mm!important}
+  .thermal-ticket-body footer strong,.thermal-ticket-body footer span,.thermal-ticket-body footer small{display:block!important;color:#111827!important;font-size:5.7pt!important;font-weight:400!important;line-height:1.15!important}
+  .thermal-ticket-body footer strong{font-weight:600!important}
+  .thermal-ticket-body footer address{margin:0!important;color:#374151!important;font-size:5.3pt!important;font-style:normal!important;line-height:1.2!important}
 }

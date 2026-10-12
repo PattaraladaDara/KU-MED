@@ -1,11 +1,11 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { THAI_BUDDHIST_LOCALE, THAI_TIME_ZONE } from "@/lib/thai-date";
 import { Icd10Combobox } from "@/components/icd10-combobox";
 import { TreatmentRecordActions } from "@/components/treatment-record-actions";
-import { Barcode39 } from "@/components/barcode39";
 import { PatientGeneral } from "@/components/patient-general";
 import { RescheduleAppointmentButton } from "@/components/reschedule-appointment-button";
 import { PaymentForm, PaymentList, type PaymentItem } from "@/components/payment-workflow";
@@ -76,7 +76,10 @@ function PrintableAppointmentHistory({records,treatments,patient,onChanged}:{rec
   const completed=records.filter(item=>item.status==="completed").length;
   const missed=records.filter(item=>item.status==="no_show").length;
   const visible=records.filter(item=>filter==="all"||item.status===filter);
-  function printAppointment(appointment:Appointment){setPrintJob({appointment,printedAt:new Date()});requestAnimationFrame(()=>requestAnimationFrame(()=>window.print()));}
+  function printAppointment(appointment:Appointment){
+    setPrintJob({appointment,printedAt:new Date()});
+    requestAnimationFrame(()=>requestAnimationFrame(()=>window.setTimeout(()=>window.print(),400)));
+  }
   return <div className="appointment-history"><div className="appointment-filters"><span>กรองสถานะ:</span><button type="button" aria-pressed={filter==="all"} onClick={()=>setFilter("all")}>ทั้งหมด ({records.length})</button><button type="button" aria-pressed={filter==="scheduled"} onClick={()=>setFilter("scheduled")}>รอมาตามนัด ({scheduled})</button><button type="button" aria-pressed={filter==="completed"} onClick={()=>setFilter("completed")}>เสร็จสิ้น ({completed})</button><button type="button" aria-pressed={filter==="no_show"} onClick={()=>setFilter("no_show")}>ขาดนัดหมาย ({missed})</button></div>
     {visible.length===0?<div className="record-empty"><strong>ไม่พบรายการนัดหมาย</strong><span>เลือกสถานะอื่นหรือสร้างการนัดหมายใหม่</span></div>:<div className="appointment-list">{visible.map(item=>{const date=new Date(item.scheduledAt);const done=item.status==="completed",missed=item.status==="no_show",linkedTreatment=treatments.find(record=>record.appointmentId===item.id);return <article className={done?"appointment-card completed":missed?"appointment-card missed":"appointment-card upcoming"} key={item.id}><time><small>{new Intl.DateTimeFormat("th-TH",{month:"short",timeZone:THAI_TIME_ZONE}).format(date)}</small><strong>{new Intl.DateTimeFormat("th-TH",{day:"numeric",timeZone:THAI_TIME_ZONE}).format(date)}</strong><span>{new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE,{year:"numeric",timeZone:THAI_TIME_ZONE}).format(date)}</span></time><div className="appointment-info"><div><h3>{item.reason}</h3><span className={done?"appointment-state done":missed?"appointment-state missed":"appointment-state"}>{done?"ตรวจเสร็จสิ้น":missed?"ขาดนัดหมาย":"ยืนยันการนัดแล้ว"}</span></div><dl><div><dt>◷ เวลา</dt><dd>{new Intl.DateTimeFormat("th-TH",{hour:"2-digit",minute:"2-digit",timeZone:THAI_TIME_ZONE}).format(date)} น.</dd></div><div><dt>♧ คลินิก</dt><dd>{item.department}</dd></div><div><dt>♟ แพทย์</dt><dd>{item.clinician||"รอระบุ"}</dd></div><div><dt>□ หมายเหตุ</dt><dd>{item.notes&&`${item.notes} · `}ต้องมาลงทะเบียนภายในเวลาไม่เกิน 15:00 น. เท่านั้น</dd></div>{done&&item.result&&<div className="appointment-result"><dt>● ผลการตรวจ</dt><dd>{item.result}</dd></div>}</dl></div><div className="appointment-actions">{done?(linkedTreatment?<button type="button" className="secondary-button" onClick={()=>router.push(`/patients/${patient.id}?tab=treatments&treatmentId=${linkedTreatment.id}`,{scroll:false})}>ดูบันทึกการรักษาครั้งนี้</button>:<span className="unlinked-treatment-note">ไม่พบบันทึกที่เชื่อมกับนัดหมายนี้</span>):missed?<span className="missed-appointment-note">ระบบบันทึกสถานะขาดนัดหมายแล้ว</span>:<><RescheduleAppointmentButton patientId={patient.id} appointment={item} onChanged={onChanged}/><button type="button" className="primary-button" onClick={()=>printAppointment(item)}>พิมพ์ใบนัด</button></>}</div></article>})}</div>}
     {printJob&&<AppointmentSlip patient={patient} appointment={printJob.appointment} printedAt={printJob.printedAt}/>}</div>;
@@ -89,13 +92,17 @@ function AppointmentSlip({patient,appointment,printedAt}:{patient:Patient;appoin
   const issuedDate=new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE,{day:"numeric",month:"long",year:"numeric",timeZone:THAI_TIME_ZONE}).format(printedAt);
   const issuedTime=new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE,{hour:"2-digit",minute:"2-digit",second:"2-digit",timeZone:THAI_TIME_ZONE}).format(printedAt);
   return <article className="appointment-print-slip" aria-hidden="true">
-    <header className="ticket-header"><div><strong>สถานพยาบาลมหาวิทยาลัยเกษตรศาสตร์</strong><span>วิทยาเขตกำแพงแสน · Kasetsart University</span></div><b>ใบนัด</b></header>
-    <main>
-      <section className="ticket-patient"><div><small>ชื่อผู้ป่วย</small><h1>{patient.title}{patient.firstName} {patient.lastName}</h1><p>รหัสนิสิต {patient.studentId}</p><p>คณะ: {patient.faculty}</p><p>โทรศัพท์: {patient.phone}</p></div><span>แพทย์ที่นัดหมาย<br/><strong>{appointment.clinician||"รอระบุ"}</strong></span></section>
-      <div className="ticket-two-column"><section><small>รายการนัด</small><strong>{appointment.reason}</strong></section><section><small>แผนกที่นัดหมาย</small><strong>{appointment.department}</strong></section></div>
-      <section className="ticket-datetime"><small>วัน / เดือน / ปี ที่นัดหมาย</small><strong>{thaiDate}</strong><b>เวลา {time} น.</b></section>
-      <section className="ticket-notes"><small>หมายเหตุเพิ่มเติม</small><p>{appointment.notes&&`${appointment.notes} · `}ต้องมาลงทะเบียนภายในเวลาไม่เกิน 15:00 น. เท่านั้น</p></section>
-      <footer><div><strong>ควรมาถึงก่อนเวลานัดอย่างน้อย 30 นาที</strong><span>กรุณานำบัตรประจำตัวประชาชนหรือบัตรนิสิตมาด้วย</span><small>ออกใบนัดวันที่ {issuedDate} เวลา {issuedTime} น.</small></div><Barcode39 value={`KUMED-${patient.studentId}`}/></footer>
+    <header className="thermal-ticket-header"><Image src="/appointment-emblem.png" width={54} height={54} alt="ตรามหาวิทยาลัยเกษตรศาสตร์" priority unoptimized/><div><strong>สถานพยาบาลมหาวิทยาลัยเกษตรศาสตร์</strong><span>วิทยาเขตกำแพงแสน</span></div></header>
+    <main className="thermal-ticket-body">
+      <dl>
+        <div><dt>ชื่อ–นามสกุล</dt><dd>{patient.title}{patient.firstName} {patient.lastName}</dd></div>
+        <div><dt>วันที่นัด</dt><dd><strong>{thaiDate}</strong><span>เวลา {time} น.</span></dd></div>
+        <div><dt>นายแพทย์</dt><dd>{appointment.clinician||"รอระบุ"}</dd></div>
+        <div><dt>สาเหตุการนัด</dt><dd>{appointment.reason}</dd></div>
+        <div><dt>แผนกที่นัดหมาย</dt><dd>{appointment.department}</dd></div>
+        <div><dt>หมายเหตุเพิ่มเติม</dt><dd>{appointment.notes&&<span>{appointment.notes}</span>}<strong>ต้องมาลงทะเบียนภายในเวลาไม่เกิน 15:00 น. เท่านั้น</strong><span>ควรมาถึงก่อนเวลานัดอย่างน้อย 30 นาที</span></dd></div>
+      </dl>
+      <footer><div><strong>สอบถามเพิ่มเติม / แจ้งเปลี่ยนกำหนดการนัด</strong><span>☎ โทร 034-351611</span><small>ออกใบนัด {issuedDate} เวลา {issuedTime} น.</small></div><address>สถานพยาบาล มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตกำแพงแสน<br/>เลขที่ 1 หมู่ 6 ถนนมาลัยแมน ตำบลกำแพงแสน<br/>อำเภอกำแพงแสน จังหวัดนครปฐม 73140</address></footer>
     </main>
   </article>;
 }

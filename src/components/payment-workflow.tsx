@@ -7,7 +7,27 @@ import { THAI_BUDDHIST_LOCALE, THAI_TIME_ZONE } from "@/lib/thai-date";
 
 export type PaymentItem={id:string;paidAt:string;referenceCode:string;receiptNumber:string|null;description:string;amountSatang:number;method:string;status:string;receivedSatang:number|null;changeSatang:number|null;slipFileName:string|null};
 const money=(satang:number)=>`฿${(satang/100).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-const paidAt=(value:string)=>new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE,{dateStyle:"medium",timeStyle:"short",timeZone:THAI_TIME_ZONE}).format(new Date(value));
+const paymentTime=(value:string)=>new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE,{hour:"2-digit",minute:"2-digit",timeZone:THAI_TIME_ZONE}).format(new Date(value));
+function PaymentDateBadge({value}:{value:string}){const date=new Date(value);return <time className="payment-date-badge" dateTime={date.toISOString()}><small>{new Intl.DateTimeFormat("th-TH",{month:"short",timeZone:THAI_TIME_ZONE}).format(date)}</small><strong>{new Intl.DateTimeFormat("th-TH",{day:"numeric",timeZone:THAI_TIME_ZONE}).format(date)}</strong><span>พ.ศ. {new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE,{year:"numeric",timeZone:THAI_TIME_ZONE}).format(date)}</span></time>}
+
+function ReceiptPrintButton({patientId,paymentId}:{patientId:string;paymentId:string}){
+  const[printing,setPrinting]=useState(false);
+  function printReceipt(){
+    setPrinting(true);
+    const frame=document.createElement("iframe");
+    frame.title="พิมพ์ใบเสร็จ";
+    frame.src=`/api/patients/${patientId}/payments/${paymentId}/receipt`;
+    frame.style.position="fixed";
+    frame.style.width="1px";
+    frame.style.height="1px";
+    frame.style.border="0";
+    frame.style.opacity="0";
+    frame.style.pointerEvents="none";
+    document.body.appendChild(frame);
+    window.setTimeout(()=>{frame.remove();setPrinting(false);},60000);
+  }
+  return <button type="button" className="primary-button receipt-print-button" onClick={printReceipt} disabled={printing}>{printing?"กำลังเตรียมใบเสร็จ...":"พิมพ์ใบเสร็จ"}</button>;
+}
 
 export function PaymentForm({patientId,saving,onSaved,onError}:{patientId:string;saving:boolean;onSaved:()=>Promise<void>;onError:(message:string)=>void}){
   const[method,setMethod]=useState("เงินสด"),[amount,setAmount]=useState(""),[received,setReceived]=useState(""),[qr,setQr]=useState({payload:"",url:""});
@@ -31,5 +51,5 @@ export function PaymentList({patientId,records,onChanged,onError}:{patientId:str
   const filters=[["all","ทั้งหมด",records.length],["paid","ชำระแล้ว",records.filter(item=>item.status==="paid").length],["pending","รอยืนยัน",records.filter(item=>item.status==="pending").length],["coverage","ใช้สิทธิการรักษา",records.filter(item=>item.method==="สิทธิการรักษา").length]] as const;
   async function upload(paymentId:string,file:File|null){if(!file)return;setUploading(paymentId);onError("");const form=new FormData();form.set("slip",file);try{const response=await fetch(`/api/patients/${patientId}/payments/${paymentId}/slip`,{method:"POST",body:form});const result=await response.json();if(!response.ok)throw new Error(result.error||"อัปโหลดสลิปไม่สำเร็จ");await onChanged();}catch(reason){onError(reason instanceof Error?reason.message:"อัปโหลดสลิปไม่สำเร็จ");}finally{setUploading(null);}}
   if(!records.length)return <div className="record-empty"><strong>ยังไม่มีข้อมูลการชำระเงิน</strong><span>กด “เพิ่มรายการ” เพื่อบันทึกการชำระเงิน</span></div>;
-  return <><div className="appointment-filters payment-filters"><span>กรองสถานะ:</span>{filters.map(([value,label,count])=><button type="button" key={value} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{label} ({count})</button>)}</div>{visible.length===0&&<div className="record-empty"><strong>ไม่พบรายการในสถานะนี้</strong><span>เลือกสถานะอื่นเพื่อดูรายการชำระเงิน</span></div>}<div className="payment-list">{visible.map(item=><article className="payment-card" key={item.id}><div className="payment-main"><div><time>{paidAt(item.paidAt)}</time><h3>{item.description}</h3><p>{item.receiptNumber||item.referenceCode} · {item.method}</p>{item.method==="เงินสด"&&<small>ต้องชำระ {money(item.amountSatang)} · รับมา {money(item.receivedSatang||0)} · เงินทอน {money(item.changeSatang||0)}</small>}</div><div><strong>{money(item.amountSatang)}</strong><span className={item.status==="paid"?"payment-status paid":"payment-status pending"}>{item.status==="paid"?"ชำระแล้ว":"รอยืนยันสลิป"}</span></div></div><div className="payment-actions"><a className="primary-button receipt-print-button" href={`/api/patients/${patientId}/payments/${item.id}/receipt`} target="_blank" rel="noreferrer">พิมพ์ใบเสร็จ</a>{item.slipFileName?<a className="secondary-button" href={`/api/patients/${patientId}/payments/${item.id}/slip`} target="_blank" rel="noreferrer">ดูสลิป</a>:<label className="secondary-button slip-upload">{uploading===item.id?"กำลังอัปโหลด...":"＋ เพิ่มสลิป"}<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={uploading===item.id} onChange={event=>upload(item.id,event.target.files?.[0]||null)}/></label>}</div></article>)}</div></>;
+  return <><div className="appointment-filters payment-filters"><span>กรองสถานะ:</span>{filters.map(([value,label,count])=><button type="button" key={value} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{label} ({count})</button>)}</div>{visible.length===0&&<div className="record-empty"><strong>ไม่พบรายการในสถานะนี้</strong><span>เลือกสถานะอื่นเพื่อดูรายการชำระเงิน</span></div>}<div className="payment-list">{visible.map(item=><article className="payment-card" key={item.id}><div className="payment-main"><div><PaymentDateBadge value={item.paidAt}/><h3>{item.description}</h3><p className="payment-paid-time">เวลา {paymentTime(item.paidAt)} น.</p><p>{item.receiptNumber||item.referenceCode} · {item.method}</p>{item.method==="เงินสด"&&<small>ต้องชำระ {money(item.amountSatang)} · รับมา {money(item.receivedSatang||0)} · เงินทอน {money(item.changeSatang||0)}</small>}</div><div><strong>{money(item.amountSatang)}</strong><span className={item.status==="paid"?"payment-status paid":"payment-status pending"}>{item.status==="paid"?"ชำระแล้ว":"รอยืนยันสลิป"}</span></div></div><div className="payment-actions"><ReceiptPrintButton patientId={patientId} paymentId={item.id}/>{item.slipFileName?<a className="secondary-button" href={`/api/patients/${patientId}/payments/${item.id}/slip`} target="_blank" rel="noreferrer">ดูสลิป</a>:<label className="secondary-button slip-upload">{uploading===item.id?"กำลังอัปโหลด...":"＋ เพิ่มสลิป"}<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={uploading===item.id} onChange={event=>upload(item.id,event.target.files?.[0]||null)}/></label>}</div></article>)}</div></>;
 }
