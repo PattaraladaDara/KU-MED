@@ -55,11 +55,15 @@ model Appointment {
   status      String    @default("scheduled")
   notes       String?
   result      String?
+  originTreatmentId String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   patient     Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  resultTreatment TreatmentRecord? @relation("AppointmentResultTreatment")
+  originTreatment TreatmentRecord? @relation("AppointmentOriginTreatment", fields: [originTreatmentId], references: [id], onDelete: SetNull)
 
   @@index([patientId, scheduledAt])
+  @@index([originTreatmentId])
 }
 
 model Payment {
@@ -106,11 +110,18 @@ model TreatmentRecord {
   diagnosisName    String?
   treatmentPlan    String?
   medicationOrders String?
+  appointmentId    String?  @unique
+  visitSource      String   @default("walk_in")
+  appointmentReason String?
+  appointmentScheduledAt DateTime?
   createdAt        DateTime @default(now())
   patient          Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment      Appointment? @relation("AppointmentResultTreatment", fields: [appointmentId], references: [id], onDelete: SetNull)
+  createdAppointments Appointment[] @relation("AppointmentOriginTreatment")
   medicalCertificates MedicalCertificate[]
 
   @@index([patientId, visitedAt])
+  @@index([visitSource, visitedAt])
 }
 
 model Evaluation {

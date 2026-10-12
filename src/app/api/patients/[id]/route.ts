@@ -42,9 +42,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if(appointmentId&&!linkedAppointment)return NextResponse.json({error:"ไม่พบรายการนัดหมายที่รอบันทึกผลการตรวจ"},{status:404});
       const visitDate=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(visitedAt);
       if(linkedAppointment){const appointmentDate=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(linkedAppointment.scheduledAt);const today=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(new Date());if(appointmentDate!==today||visitDate!==appointmentDate)return NextResponse.json({error:"บันทึกการตรวจตามนัดได้เฉพาะในวันนัดหมาย"},{status:400});}
-      const record=await getDb().treatmentRecord.create({data:{patientId:id,visitedAt,department,diagnosis,visitType,clinician:optionalText(body.clinician),paymentType:patient.coverage,visitNumber:optionalText(body.visitNumber),temperature:numeric(body.temperature),bloodPressure:optionalText(body.bloodPressure),pulse:integer(body.pulse),oxygenSaturation:integer(body.oxygenSaturation),weightKg:numeric(body.weightKg),heightCm:numeric(body.heightCm),chiefComplaint:optionalText(body.chiefComplaint),diagnosisCode:diagnosisCode||null,diagnosisName:icd10?.description??null,treatmentPlan:optionalText(body.treatmentPlan),medicationOrders:optionalText(body.medicationOrders)}});
-      const visitStart=parseBangkokDateTime(`${visitDate}T00:00`);const visitEnd=new Date(visitStart.getTime()+86400000);
-      await getDb().appointment.updateMany({where:appointmentId?{id:appointmentId,patientId:id}:{patientId:id,status:{in:["scheduled","no_show"]},scheduledAt:{gte:visitStart,lt:visitEnd}},data:{status:"completed"}});
+      const record=await getDb().$transaction(async db=>{
+        const created=await db.treatmentRecord.create({data:{patientId:id,visitedAt,department,diagnosis,visitType,clinician:optionalText(body.clinician),paymentType:patient.coverage,visitNumber:optionalText(body.visitNumber),temperature:numeric(body.temperature),bloodPressure:optionalText(body.bloodPressure),pulse:integer(body.pulse),oxygenSaturation:integer(body.oxygenSaturation),weightKg:numeric(body.weightKg),heightCm:numeric(body.heightCm),chiefComplaint:optionalText(body.chiefComplaint),diagnosisCode:diagnosisCode||null,diagnosisName:icd10?.description??null,treatmentPlan:optionalText(body.treatmentPlan),medicationOrders:optionalText(body.medicationOrders),appointmentId:linkedAppointment?.id??null,visitSource:linkedAppointment?"appointment":"walk_in",appointmentReason:linkedAppointment?.reason??null,appointmentScheduledAt:linkedAppointment?.scheduledAt??null}});
+        if(linkedAppointment)await db.appointment.update({where:{id:linkedAppointment.id},data:{status:"completed"}});
+        return created;
+      });
       return NextResponse.json({record},{status:201});
     }
     if (kind==="appointment") {
@@ -56,7 +58,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if(!(APPOINTMENT_ROOMS as readonly string[]).includes(department))return NextResponse.json({error:"กรุณาเลือกห้องตรวจจากรายการที่กำหนด"},{status:400});
       if(!(APPOINTMENT_REASONS as readonly string[]).includes(reason))return NextResponse.json({error:"กรุณาเลือกเหตุผลการนัดหมายจากรายการที่กำหนด"},{status:400});
       const scheduledAt=parseBangkokDateTime(`${scheduledDate}T${scheduledTime}`),endsAt=new Date(scheduledAt.getTime()+30*60000);
-      const record=await getDb().appointment.create({data:{patientId:id,scheduledAt,endsAt,department,reason,clinician:optionalText(body.clinician),notes:optionalText(body.notes),result:null,status:"scheduled"}});
+      const createdAt=new Date(),createdDate=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(createdAt);
+      const serviceDayStart=parseBangkokDateTime(`${createdDate}T00:00`);
+      const originTreatment=await getDb().treatmentRecord.findFirst({where:{patientId:id,visitedAt:{gte:serviceDayStart,lte:createdAt}},orderBy:{visitedAt:"desc"},select:{id:true}});
+      const record=await getDb().appointment.create({data:{patientId:id,scheduledAt,endsAt,department,reason,clinician:optionalText(body.clinician),notes:optionalText(body.notes),result:null,status:"scheduled",originTreatmentId:originTreatment?.id??null}});
       return NextResponse.json({record},{status:201});
     }
     if (kind==="payment") {

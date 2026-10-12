@@ -5,4 +5,4 @@ import { availableAssets } from "@/lib/design-assets";
 import "../../clinical.css";
 
 export const metadata:Metadata={title:"ข้อมูลผู้ใช้บริการ | KU-MED"};
-export default async function PatientPage({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<{tab?:string}>}){const[{id},{tab}]=await Promise.all([params,searchParams]);return <AppShell assets={availableAssets()}><PatientProfile patientId={id} initialTab={tab}/></AppShell>;}
+export default async function PatientPage({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<{tab?:string;treatmentId?:string}>}){const[{id},{tab,treatmentId}]=await Promise.all([params,searchParams]);return <AppShell assets={availableAssets()}><PatientProfile patientId={id} initialTab={tab} focusTreatmentId={treatmentId}/></AppShell>;}

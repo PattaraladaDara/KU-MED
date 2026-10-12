@@ -74,6 +74,9 @@ npm start
 - `STUDENT_LOOKUP_API_URL`: PATH ฝั่งเซิร์ฟเวอร์สำหรับค้นหาข้อมูลนิสิต ใส่ `{studentId}` ในตำแหน่งรหัส เช่น `https://student-api.example.ac.th/students/{studentId}`
 - `STUDENT_LOOKUP_API_TOKEN`: Bearer token ของ API (เว้นว่างได้ถ้าไม่ใช้)
 - `STUDENT_LOOKUP_MOCK`: ตั้งเป็น `true` เพื่อสาธิตการดึงข้อมูลโดยไม่เรียก API หรือใช้ข้อมูลจริง
+- `CITIZEN_CARD_READER_MODE`: ใช้ `mock` สำหรับการนำเสนอ, `local` สำหรับเครื่องอ่านจริง หรือ `disabled` เพื่อปิดการใช้งาน
+- `CITIZEN_CARD_READER_URL`: URL ฝั่งเซิร์ฟเวอร์ของโปรแกรมเชื่อมต่อเครื่องอ่านบัตร เช่น `http://host.docker.internal:47831/read-card` เมื่อเว็บทำงานใน Docker บน Windows
+- `CITIZEN_CARD_READER_TOKEN`: Token สำหรับยืนยันการเชื่อมต่อระหว่าง KU-MED กับโปรแกรมอ่านบัตร เก็บเฉพาะใน `.env`
 - `KU_ALLLOGIN_URL`: URL ฝั่งเซิร์ฟเวอร์สำหรับเริ่ม KU All-Login เมื่อได้รับจากผู้ดูแลระบบ ให้ใส่ใน `.env` โดยไม่ใช้ชื่อขึ้นต้นด้วย `NEXT_PUBLIC_`
 
 ## ระบบบัญชีผู้ปฏิบัติงาน
@@ -110,6 +113,24 @@ STUDENT_LOOKUP_API_TOKEN=
 ```
 
 ข้อมูลจำลองจะสร้างจากรหัสนิสิตที่กรอกในรูปแบบเดียวกับ `data.student[]` และ `name_history` จึงสามารถเปลี่ยนไปใช้ API จริงภายหลังได้โดยตั้ง `STUDENT_LOOKUP_MOCK=false` และใส่ URL โดยไม่ต้องแก้หน้าแบบฟอร์ม
+
+## เครื่องอ่านบัตรประชาชน
+
+สำหรับการนำเสนอให้ตั้งค่าใน `.env` ดังนี้ ระบบจะสร้างข้อมูลบุคคลจำลอง ไม่เรียกข้อมูลจริงและไม่ส่งรูปถ่าย:
+
+```env
+CITIZEN_CARD_READER_MODE=mock
+```
+
+เมื่อติดตั้งเครื่องอ่านจริง ให้มีโปรแกรมเชื่อมต่อบน Windows ที่อ่านบัตรผ่านไดรเวอร์ของผู้ผลิตหรือ PC/SC และเปิด Local API สำหรับ KU-MED จากนั้นเปลี่ยนเฉพาะค่าใน `.env`:
+
+```env
+CITIZEN_CARD_READER_MODE=local
+CITIZEN_CARD_READER_URL=http://host.docker.internal:47831/read-card
+CITIZEN_CARD_READER_TOKEN=เปลี่ยนเป็น-token-ที่คาดเดายาก
+```
+
+Local API ควรรับ `POST` ที่มี `{ "operation": "read_identity", "includePhoto": false }` และส่ง JSON ที่มี `citizenId`, `title`, `firstName`, `lastName`, `birthDate`, `gender` และ `homeAddress` ระบบเรียก API นี้จากฝั่งเซิร์ฟเวอร์เท่านั้น กำหนด timeout, ปิด cache, จำกัดความถี่, ไม่บันทึกข้อมูลดิบ และตรวจผู้ป่วยซ้ำก่อนเติมข้อมูลลงแบบฟอร์ม การนำไปใช้จริงต้องติดตั้งระบบยืนยันตัวตนฝั่งเซิร์ฟเวอร์ จำกัดสิทธิ์ตามบทบาท ใช้ HTTPS และจำกัด Local API ให้รับคำขอจากเครื่องหรือเครือข่ายที่กำหนด
 
 Compose สร้าง `DATABASE_URL` ของ containers โดยใช้ hostname `db` หากเปลี่ยนค่าฐานข้อมูลให้ปรับ `DATABASE_URL` ใน `.env` สำหรับการพัฒนาในเครื่องด้วย ใช้รหัสผ่านที่ปลอดภัยต่อ URL หรือปรับ URL ให้ percent-encode อย่างถูกต้อง
 

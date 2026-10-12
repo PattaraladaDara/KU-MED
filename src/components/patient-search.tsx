@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -24,11 +24,20 @@ function PatientSearchContent() {
   useEffect(()=>{let active=true;fetch("/api/patients?q=").then(async response=>{const result=await response.json();if(!response.ok)throw new Error(result.error||"โหลดข้อมูลไม่สำเร็จ");return result;}).then(result=>{if(active)setPatients(result.patients);}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"โหลดข้อมูลไม่สำเร็จ");}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
   const filtered=useMemo(()=>status==="ทั้งหมด"?patients:patients.filter(patient=>patient.status===status),[patients,status]);
   function submit(event:FormEvent){event.preventDefault();void load(query);}
+  function openPatient(patientId:string){router.push(`/patients/${patientId}?tab=${selectedTab}`);}
+  function selectRow(event:MouseEvent<HTMLTableRowElement>,patientId:string){
+    if((event.target as HTMLElement).closest("a,button,input,select,textarea")||window.getSelection()?.toString())return;
+    openPatient(patientId);
+  }
+  function selectRowWithKeyboard(event:KeyboardEvent<HTMLTableRowElement>,patientId:string){
+    if(event.key!=="Enter"&&event.key!==" ")return;
+    event.preventDefault();openPatient(patientId);
+  }
   return <section className="clinical-page directory-page"><header className="clinical-header"><div><h1>{requestedTab ? sectionLabel : "ค้นหารายชื่อผู้ใช้บริการ"}</h1><p>{requestedTab ? `ค้นหาและเลือกผู้ใช้บริการเพื่อเปิด${sectionLabel}` : "ค้นหาและตรวจสอบข้อมูลนิสิต บุคลากร และประวัติการเข้ารับบริการ"}</p></div></header>
     <section className="clinical-card directory-toolbar"><form className="directory-search" role="search" onSubmit={submit}><label htmlFor="patient-search">ค้นหาผู้ใช้บริการ</label><div className="search-control"><span aria-hidden="true">⌕</span><input id="patient-search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="ชื่อ–นามสกุล รหัสนิสิต หรือเลขประจำตัวประชาชน"/><button className="primary-button" type="submit" disabled={loading}>{loading?"กำลังค้นหา...":"ค้นหา"}</button></div></form><div className="directory-filter"><label htmlFor="patient-status">สถานภาพ</label><select id="patient-status" value={status} onChange={event=>setStatus(event.target.value)}><option>ทั้งหมด</option><option>นิสิตปัจจุบัน</option><option>บุคลากร</option></select></div></section>
     {error&&<p className="form-error" role="alert">{error}</p>}
     <section className="clinical-card directory-results"><div className="directory-results-head"><div><h2>รายชื่อผู้ใช้บริการ</h2><p>พบทั้งหมด {filtered.length} รายการ</p></div><button className="secondary-button" type="button" onClick={()=>void load(query)}>รีเฟรชข้อมูล</button></div>
-      <div className="directory-table-wrap"><table className="directory-table"><thead><tr><th>ชื่อ–นามสกุล</th><th>รหัสนิสิต</th><th>คณะ / สังกัด</th><th>ชั้นปี</th><th>สถานภาพ</th><th><span className="sr-only">จัดการ</span></th></tr></thead><tbody>{!loading&&filtered.map(patient=><tr key={patient.id}><td><div className="directory-person"><span className="directory-avatar">{patient.firstName.slice(0,1)}{patient.lastName.slice(0,1)}</span><span><strong>{patient.title}{patient.firstName} {patient.lastName}</strong><small>{patient.email}</small></span></div></td><td>{patient.studentId}</td><td>{patient.faculty}<small>{patient.major}</small></td><td>{patient.studyYear}</td><td><span className="status-pill">{patient.status}</span></td><td><Link className="row-action" href={`/patients/${patient.id}?tab=${selectedTab}`}>ดูข้อมูล</Link></td></tr>)}</tbody></table>
+      <div className="directory-table-wrap"><table className="directory-table"><thead><tr><th>ชื่อ–นามสกุล</th><th>รหัสนิสิต</th><th>คณะ / สังกัด</th><th>ชั้นปี</th><th>สถานภาพ</th><th><span className="sr-only">จัดการ</span></th></tr></thead><tbody>{!loading&&filtered.map(patient=><tr className="directory-clickable-row" key={patient.id} tabIndex={0} aria-label={`เปิดข้อมูลของ ${patient.title}${patient.firstName} ${patient.lastName}`} onClick={event=>selectRow(event,patient.id)} onKeyDown={event=>selectRowWithKeyboard(event,patient.id)}><td><div className="directory-person"><span className="directory-avatar">{patient.firstName.slice(0,1)}{patient.lastName.slice(0,1)}</span><span><strong>{patient.title}{patient.firstName} {patient.lastName}</strong><small>{patient.email}</small></span></div></td><td>{patient.studentId}</td><td>{patient.faculty}<small>{patient.major}</small></td><td>{patient.studyYear}</td><td><span className="status-pill">{patient.status}</span></td><td><Link className="row-action" href={`/patients/${patient.id}?tab=${selectedTab}`}>ดูข้อมูล</Link></td></tr>)}</tbody></table>
         {loading&&<div className="directory-empty">กำลังโหลดข้อมูล...</div>}{!loading&&filtered.length===0&&<div className="directory-empty"><span className="directory-empty-icon" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></span><strong>ไม่พบรายชื่อผู้ใช้บริการ</strong><span>ลองเปลี่ยนคำค้นหา หรือลงทะเบียนข้อมูลใหม่</span>{!error&&<Link className="primary-button directory-empty-action" href="/registration">ลงทะเบียนผู้ป่วยใหม่</Link>}</div>}
       </div>
       <div className="directory-footer">แสดง {filtered.length} จาก {patients.length} รายการ</div>
