@@ -113,3 +113,34 @@
   .operations-dashboard .summary-card i { display:grid; place-items:center; width:36px; height:36px; min-width:36px; border-radius:12px; padding:0; }
   .operations-dashboard .summary-card i svg { display:block; width:22px; height:22px; }
 }
+
+/* Semantic dashboard colors and icons for operational use. */
+@media screen {
+  .operations-dashboard .summary-cards { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .operations-dashboard .summary-card { border-top:4px solid var(--summary-color); background:linear-gradient(145deg,#fff 62%,var(--summary-soft)); }
+  .operations-dashboard .summary-card::before { display:none; }
+  .operations-dashboard .summary-card>div>span { color:var(--summary-color); }
+  .operations-dashboard .summary-card>div>p { color:#64748b; }
+  .operations-dashboard .summary-card>i { background:var(--summary-soft); color:var(--summary-color); }
+  .operations-dashboard .summary-card.green { --summary-color:#08775e; --summary-soft:#e2f6ed; }
+  .operations-dashboard .summary-card.blue { --summary-color:#2563a5; --summary-soft:#e8f1fc; }
+  .operations-dashboard .summary-card.amber { --summary-color:#9a6700; --summary-soft:#fff4d6; }
+  .operations-dashboard .summary-card.orange { --summary-color:#c05621; --summary-soft:#fff0e6; }
+  .operations-dashboard .summary-card.teal { --summary-color:#0f766e; --summary-soft:#dff7f3; }
+  .operations-dashboard .summary-card.red { --summary-color:#b42318; --summary-soft:#feecea; }
+  .dashboard-card-heading { justify-content:flex-start; }
+  .dashboard-card-heading>div { min-width:0; flex:1; }
+  .dashboard-card-heading>a { flex:none; }
+  .dashboard-heading-icon { display:grid; width:38px; height:38px; flex:none; place-items:center; border-radius:11px; background:#e8f1fc; color:#2563a5; }
+  .dashboard-heading-icon.rooms { background:#e2f6ed; color:#08775e; }
+  .dashboard-heading-icon.chart { background:#ede9fe; color:#6d4fc2; }
+  .dashboard-heading-icon.finance { background:#fff4d6; color:#9a6700; }
+  .dashboard-heading-icon.shortcut { background:#e6f7f0; color:#08775e; }
+  .queue-status.no_show { background:#feecea; color:#b42318; }
+  .finance-card .attention { margin-top:3px; padding:8px 10px; border:1px solid #f6c7a1; border-radius:8px; background:#fff5eb; color:#a44b16; }
+  .quick-actions b svg { width:18px; height:18px; }
+  .quick-actions a:nth-child(2) b { background:#e8f1fc; color:#2563a5; }
+  .quick-actions a:nth-child(3) b { background:#ede9fe; color:#6d4fc2; }
+  @media(max-width:1000px) { .operations-dashboard .summary-cards { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media(max-width:520px) { .operations-dashboard .summary-cards { grid-template-columns:1fr; } }
+}

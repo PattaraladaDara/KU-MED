@@ -12,8 +12,14 @@ export async function POST(request: NextRequest) {
     const username = text(body.username).toLowerCase(), password = String(body.password ?? "");
     if (!username || !password) return NextResponse.json({ error: "กรุณากรอก Username และ Password" }, { status: 400 });
     const account = await getDb().staffAccount.findUnique({ where: { username } });
-    if (!account || !account.active || !(await verifyPassword(password, account.passwordHash)))
+    if (!account || !(await verifyPassword(password, account.passwordHash)))
       return NextResponse.json({ error: "Username หรือ Password ไม่ถูกต้อง" }, { status: 401 });
+    const statusMessage:Record<string,string>={pending_email:"กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ",pending_review:"คำขอบัญชีอยู่ระหว่างการตรวจสอบ",changes_requested:"คำขอถูกส่งกลับให้แก้ไข กรุณาติดต่อผู้ดูแลระบบ",rejected:"คำขอบัญชีไม่ได้รับการอนุมัติ",suspended:"บัญชีถูกระงับการใช้งาน",expired:"สิทธิ์การใช้งานหมดอายุ"};
+    if(account.applicationStatus!=="approved"||!account.active)return NextResponse.json({error:statusMessage[account.applicationStatus]||"บัญชียังไม่พร้อมใช้งาน",applicationStatus:account.applicationStatus},{status:403});
+    const now=new Date();
+    if((account.accessStartsAt&&account.accessStartsAt>now)||(account.accessEndsAt&&account.accessEndsAt<now))return NextResponse.json({error:"บัญชีอยู่นอกช่วงเวลาที่ได้รับอนุญาต กรุณาติดต่อผู้ดูแลระบบ",applicationStatus:"expired"},{status:403});
+    if(account.licenseExpiresAt&&account.licenseExpiresAt<now)return NextResponse.json({error:"ใบอนุญาตประกอบวิชาชีพหมดอายุ กรุณาติดต่อผู้ดูแลระบบ",applicationStatus:"expired"},{status:403});
+    await getDb().staffAccount.update({where:{id:account.id},data:{lastLoginAt:now}});
     const photo = await getDb().applicationMetadata.findUnique({ where: { key: `profile-photo:${account.id}` } });
     return NextResponse.json({ account: {
       username: account.username, role: account.role,

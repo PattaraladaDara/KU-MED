@@ -8,6 +8,7 @@ import { DemoSessionGate } from "./demo-session-gate";
 import { endDemoSession, getDemoSessionProfile, type DemoSessionProfile } from "@/lib/demo-session";
 import { MenuIcon } from "./menu-icon";
 import { validProfilePhoto } from "@/lib/profile-photo";
+import { canOpenPath } from "@/lib/access-control";
 
 const navigation = [
   { href: "/dashboard", label: "แดชบอร์ด", icon: "dashboard" },
@@ -16,6 +17,11 @@ const navigation = [
   { href: "/reports", label: "รายงาน", icon: "reports" },
   { href: "/evaluation", label: "แบบประเมินการทำงาน", icon: "evaluation" },
 ] as const;
+
+type NotificationItem={id:string;title:string;detail:string;time:string;href:string;tone:"info"|"warning"|"success"};
+type DashboardNotificationData={updatedAt:string;summary:{visits:number;newPatients:number;appointments:number;completed:number;waiting:number};queue:{id:string;status:string}[];finance:{pendingTransfers:number}};
+
+function roleNotifications(role:string,data:DashboardNotificationData):NotificationItem[]{const updated=new Intl.DateTimeFormat("th-TH",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Bangkok"}).format(new Date(data.updatedAt));const items:NotificationItem[]=[];if(role==="doctor"){if(data.summary.waiting>0)items.push({id:`doctor-waiting-${data.summary.waiting}`,title:"มีผู้ป่วยรอตรวจ",detail:`มีผู้ป่วยรอตรวจวันนี้ ${data.summary.waiting} รายการ กรุณาตรวจสอบลำดับคิว`,time:`อัปเดต ${updated} น.`,href:"/dashboard",tone:"warning"});if(data.summary.appointments>0)items.push({id:`doctor-appointments-${data.summary.appointments}`,title:"ตารางนัดหมายวันนี้",detail:`วันนี้มีนัดหมายทั้งหมด ${data.summary.appointments} รายการ`,time:`อัปเดต ${updated} น.`,href:"/dashboard",tone:"info"});const missed=data.queue.filter(item=>item.status==="no_show").length;if(missed>0)items.push({id:`doctor-no-show-${missed}`,title:"รายการขาดนัดหมาย",detail:`พบผู้ป่วยไม่มาตามนัด ${missed} รายการ`,time:`อัปเดต ${updated} น.`,href:"/dashboard",tone:"warning"});}else if(role==="admin"){if(data.finance.pendingTransfers>0)items.push({id:`admin-transfers-${data.finance.pendingTransfers}`,title:"การโอนเงินรอยืนยัน",detail:`มีรายการโอนเงินรอตรวจสอบหลักฐาน ${data.finance.pendingTransfers} รายการ`,time:`อัปเดต ${updated} น.`,href:"/dashboard",tone:"warning"});items.push({id:`admin-daily-${data.summary.visits}-${data.summary.appointments}`,title:"สรุปการให้บริการวันนี้",detail:`เข้ารับบริการ ${data.summary.visits} ครั้ง และมีนัดหมาย ${data.summary.appointments} รายการ`,time:`อัปเดต ${updated} น.`,href:"/reports",tone:"info"});}else{if(data.summary.newPatients>0)items.push({id:`staff-new-patients-${data.summary.newPatients}`,title:"ผู้ป่วยลงทะเบียนใหม่",detail:`วันนี้มีผู้ป่วยลงทะเบียนใหม่ ${data.summary.newPatients} คน`,time:`อัปเดต ${updated} น.`,href:"/dashboard",tone:"success"});if(data.summary.appointments>0)items.push({id:`staff-appointments-${data.summary.appointments}`,title:"รายการนัดหมายวันนี้",detail:`มีนัดหมายที่ต้องให้บริการ ${data.summary.appointments} รายการ`,time:`อัปเดต ${updated} น.`,href:"/dashboard",tone:"info"});if(data.finance.pendingTransfers>0)items.push({id:`staff-transfers-${data.finance.pendingTransfers}`,title:"หลักฐานการโอนเงินรอตรวจสอบ",detail:`มีรายการชำระเงินรอยืนยัน ${data.finance.pendingTransfers} รายการ`,time:`อัปเดต ${updated} น.`,href:"/dashboard",tone:"warning"});}return items;}
 
 function SearchSubmenu() {
   const pathname = usePathname(), params = useSearchParams();
@@ -44,6 +50,10 @@ export function AppShell({ children, assets }: { children: React.ReactNode; asse
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const sidebarIsCollapsed = collapsed && !sidebarHovered;
   const [profile] = useState<DemoSessionProfile | null>(() => getDemoSessionProfile());
+  const [notifications,setNotifications]=useState<NotificationItem[]>([]);
+  const [readNotifications,setReadNotifications]=useState<string[]>(()=>{if(typeof window==="undefined")return[];try{return JSON.parse(localStorage.getItem(`ku-med-read-notifications-${getDemoSessionProfile()?.role||"staff"}`)||"[]");}catch{return[];}});
+  const [notificationsOpen,setNotificationsOpen]=useState(false);
+  const notificationRef=useRef<HTMLDivElement|null>(null);
   const scanBuffer = useRef("");
   const scanTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
   useEffect(() => {
@@ -63,7 +73,14 @@ export function AppShell({ children, assets }: { children: React.ReactNode; asse
     document.addEventListener("keydown", receiveScan);
     return () => { document.removeEventListener("keydown", receiveScan); if (scanTimer.current) clearTimeout(scanTimer.current); };
   }, [router]);
+  useEffect(()=>{const role=profile?.role||"staff";let active=true;fetch("/api/dashboard",{cache:"no-store"}).then(async response=>{if(!response.ok)throw new Error();return response.json();}).then((result:DashboardNotificationData)=>{if(active)setNotifications(roleNotifications(role,result));}).catch(()=>{if(active)setNotifications([]);});return()=>{active=false;};},[profile?.role]);
+  useEffect(()=>{if(!notificationsOpen)return;function close(event:MouseEvent){if(notificationRef.current&&!notificationRef.current.contains(event.target as Node))setNotificationsOpen(false);}function escape(event:KeyboardEvent){if(event.key==="Escape")setNotificationsOpen(false);}document.addEventListener("mousedown",close);document.addEventListener("keydown",escape);return()=>{document.removeEventListener("mousedown",close);document.removeEventListener("keydown",escape);};},[notificationsOpen]);
+  function saveRead(ids:string[]){const role=profile?.role||"staff";setReadNotifications(ids);localStorage.setItem(`ku-med-read-notifications-${role}`,JSON.stringify(ids));}
+  function openNotification(item:NotificationItem){if(!readNotifications.includes(item.id))saveRead([...readNotifications,item.id]);setNotificationsOpen(false);router.push(item.href);}
   const roleLabel = profile ? ({ doctor: "แพทย์", staff: "บุคลากร", admin: "ผู้ดูแลระบบหลัก" }[profile.role] || profile.role) : "ผู้ใช้งาน";
+  const unreadCount=notifications.filter(item=>!readNotifications.includes(item.id)).length;
+  const visibleNavigation=navigation.filter(item=>canOpenPath(profile?.role,item.href));
+  const allowedPath=canOpenPath(profile?.role,pathname);
   return <DemoSessionGate><div className={`app-shell${sidebarIsCollapsed ? " sidebar-collapsed" : ""}`}>
     <a className="skip-link" href="#main-content">ข้ามไปเนื้อหาหลัก</a>
     <aside className="sidebar" aria-label="เมนูหลัก" onPointerEnter={event => { if (event.pointerType === "mouse" && window.matchMedia("(min-width: 641px) and (hover: hover)").matches) setSidebarHovered(true); }} onPointerLeave={() => setSidebarHovered(false)}>
@@ -72,14 +89,15 @@ export function AppShell({ children, assets }: { children: React.ReactNode; asse
         <button className="menu-toggle" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? "ขยายเมนูค้างไว้" : "ย่อเมนู"} aria-expanded={!sidebarIsCollapsed} aria-controls="main-navigation">{assets.includes("menu") ? <DesignImage name="menu" assets={assets} /> : <span className="text-control">เมนู</span>}</button>
       </div>
       <div className="sidebar-line"><DesignImage name="sidebarDivider" assets={assets} /></div>
-      <nav id="main-navigation">{navigation.map(item => <div className="navigation-group" key={item.href}><Link href={item.href} aria-label={item.label} aria-current={pathname === item.href || item.href==="/search" && pathname.startsWith("/patients/") ? "page" : undefined} title={item.label}><span className="nav-icon"><MenuIcon name={item.icon}/></span><span className="nav-label">{item.label}</span></Link>{item.href==="/search" && <Suspense fallback={null}><SearchSubmenu/></Suspense>}</div>)}</nav>
+      <nav id="main-navigation">{visibleNavigation.map(item => <div className="navigation-group" key={item.href}><Link href={item.href} aria-label={item.label} aria-current={pathname === item.href || item.href==="/search" && pathname.startsWith("/patients/") ? "page" : undefined} title={item.label}><span className="nav-icon"><MenuIcon name={item.icon}/></span><span className="nav-label">{item.label}</span></Link>{item.href==="/search" && <Suspense fallback={null}><SearchSubmenu/></Suspense>}</div>)}{profile?.role==="admin"&&<div className="navigation-group"><Link href="/admin/accounts" aria-label="จัดการคำขอบัญชี" aria-current={pathname.startsWith("/admin")?"page":undefined} title="จัดการคำขอบัญชี"><span className="nav-icon"><MenuIcon name="settings"/></span><span className="nav-label">จัดการคำขอบัญชี</span></Link></div>}</nav>
       <Link className="settings-link" href="/settings" aria-current={pathname === "/settings" ? "page" : undefined}><span className="nav-icon"><MenuIcon name="settings"/></span><span className="nav-label">การตั้งค่า</span></Link>
     </aside>
-    <header className="topbar"><Link className="mobile-home" href="/dashboard">KU-MED</Link><div className="topbar-right"><span className="language">ภาษาไทย</span><span className="header-divider" aria-hidden="true"/><span className="account-role">{roleLabel}</span>
-      <div className="account-tools">
-        <span className="topbar-notification-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4M12 2V1"/></svg></span>
+    <header className="topbar"><Link className="mobile-home" href="/dashboard">KU-MED</Link><div className="topbar-right"><span className="account-role">{roleLabel}</span>
+      <div className="account-tools" ref={notificationRef}>
+        <button type="button" className="topbar-notification-button" aria-label={unreadCount?`การแจ้งเตือนใหม่ ${unreadCount} รายการ`:"การแจ้งเตือน"} aria-expanded={notificationsOpen} aria-haspopup="dialog" onClick={()=>setNotificationsOpen(value=>!value)}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4M12 2V1"/></svg>{unreadCount>0&&<span className="notification-count">{unreadCount>9?"9+":unreadCount}</span>}</button>
+        {notificationsOpen&&<section className="notification-popover" role="dialog" aria-label="รายการแจ้งเตือน"><header><div><strong>การแจ้งเตือน</strong><span>{roleLabel}</span></div>{unreadCount>0&&<button type="button" onClick={()=>saveRead([...new Set([...readNotifications,...notifications.map(item=>item.id)])])}>ทำเครื่องหมายว่าอ่านแล้ว</button>}</header><div className="notification-list">{notifications.length?notifications.map(item=><button type="button" key={item.id} className={readNotifications.includes(item.id)?"notification-item read":"notification-item"} onClick={()=>openNotification(item)}><i className={`notification-tone ${item.tone}`} aria-hidden="true"/><span><strong>{item.title}</strong><p>{item.detail}</p><small>{item.time}</small></span>{!readNotifications.includes(item.id)&&<b aria-label="ยังไม่ได้อ่าน"/>}</button>):<div className="notification-empty"><span>✓</span><strong>ไม่มีการแจ้งเตือนใหม่</strong><p>ระบบจะแสดงรายการที่เกี่ยวข้องกับหน้าที่ของคุณที่นี่</p></div>}</div></section>}
         <button type="button" onClick={logout} className="topbar-logout" aria-label="ออกจากระบบ" title="ออกจากระบบ"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 4H4v16h6M9 12h12M17 8l4 4-4 4"/></svg></button>
       </div></div></header>
-    <main id="main-content" className="main-content">{children}</main>
+    <main id="main-content" className="main-content">{allowedPath?children:<section className="access-denied"><span>!</span><h1>ไม่มีสิทธิ์เข้าถึงหน้านี้</h1><p>บัญชี {roleLabel} ไม่ได้รับสิทธิ์สำหรับส่วนงานนี้</p><Link href="/dashboard">กลับไปหน้าแดชบอร์ด</Link></section>}</main>
   </div></DemoSessionGate>;
 }

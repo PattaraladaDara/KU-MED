@@ -13,7 +13,8 @@ RUN npm install --include=optional --no-audit --no-fund
 FROM dependencies AS migration
 COPY prisma ./prisma
 COPY prisma.config.ts ./
-CMD ["npm", "run", "db:deploy"]
+COPY scripts/bootstrap-admin.mjs ./scripts/bootstrap-admin.mjs
+CMD ["sh", "-c", "npm run db:deploy && npm run admin:bootstrap"]
 
 FROM dependencies AS builder
 ARG NEXT_PUBLIC_PROMPTPAY_ID

@@ -26,6 +26,9 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-ku_med}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-ku_med}?schema=public
       TZ: Asia/Bangkok
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
     depends_on:
       db:
         condition: service_healthy
@@ -52,6 +55,7 @@ services:
       CITIZEN_CARD_READER_URL: ${CITIZEN_CARD_READER_URL:-}
       CITIZEN_CARD_READER_TOKEN: ${CITIZEN_CARD_READER_TOKEN:-}
       KU_ALLLOGIN_URL: ${KU_ALLLOGIN_URL:-}
+      AUTH_EMAIL_MOCK: ${AUTH_EMAIL_MOCK:-true}
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
     depends_on:

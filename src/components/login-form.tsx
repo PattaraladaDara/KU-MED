@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { beginDemoSession, hasDemoSession } from "@/lib/demo-session";
+import { BuddhistDateInput } from "@/components/buddhist-date-input";
 
 type Mode = "login" | "register";
 type LoginAccount = { username: string; role: string; displayName: string; medicalLicense: string; avatarUrl?:string|null };
@@ -18,6 +19,7 @@ export function LoginForm() {
   const usernameRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [photoLoading, setPhotoLoading] = useState(false);
+  const [verification,setVerification]=useState<{username:string;email:string;demoCode?:string}|null>(null);
   const photoVersion = useRef(0);
   async function choosePhoto(file?: File) {
     const version = ++photoVersion.current;
@@ -70,15 +72,16 @@ export function LoginForm() {
     if (password !== String(values.get("confirmPassword") ?? "")) { setError("Password และยืนยัน Password ไม่ตรงกัน"); return; }
     setError(""); setNotice(""); setSubmitting(true);
     try {
-      const payload = { ...Object.fromEntries(["firstName", "lastName", "role", "medicalLicense", "username", "password"].map(key => [key, String(values.get(key) ?? "").trim()])), avatarUrl: avatarUrl || null };
+      const payload = { ...Object.fromEntries(["firstName","lastName","medicalLicense","licenseExpiresAt","email","phone","organization","username","password"].map(key => [key,String(values.get(key)??"").trim()])),acceptTerms:values.has("acceptTerms"),avatarUrl:avatarUrl||null };
       const response = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const result = await response.json() as { account?: { username: string }; error?: string };
+      const result = await response.json() as { account?: { username:string;email:string };demoVerificationCode?:string;error?:string };
       if (!response.ok || !result.account) throw new Error(result.error || "ไม่สามารถสร้างบัญชีได้");
-      form.reset(); changeMode("login"); setNotice(`สร้างบัญชี ${result.account.username} สำเร็จ กรุณาเข้าสู่ระบบ`);
-      window.setTimeout(() => usernameRef.current?.focus(), 0);
+      setVerification({username:result.account.username,email:result.account.email,demoCode:result.demoVerificationCode});form.reset();setAvatarUrl("");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "ไม่สามารถสร้างบัญชีได้"); }
     finally { setSubmitting(false); }
   }
+
+  async function submitVerification(event:FormEvent<HTMLFormElement>){event.preventDefault();if(!verification||submitting)return;const values=new FormData(event.currentTarget);setSubmitting(true);setError("");try{const response=await fetch("/api/auth/verify-email",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:verification.username,code:String(values.get("code")||"").trim()})});const result=await response.json();if(!response.ok)throw new Error(result.error||"ยืนยันอีเมลไม่สำเร็จ");setVerification(null);changeMode("login");setNotice("ยืนยันอีเมลสำเร็จ คำขออยู่ระหว่างการตรวจสอบของผู้ดูแลระบบ");}catch(caught){setError(caught instanceof Error?caught.message:"ยืนยันอีเมลไม่สำเร็จ");}finally{setSubmitting(false);}}
 
   async function startKuLogin() {
     setError(""); setNotice("");
@@ -90,21 +93,28 @@ export function LoginForm() {
     } catch (caught) { setNotice(caught instanceof Error ? caught.message : "KU All-Login ยังไม่ถูกตั้งค่า"); }
   }
 
+  if(verification)return <form className="login-form email-verification-form" onSubmit={submitVerification}><div className="login-mode-heading"><div><h2>ยืนยันอีเมล</h2><p>กรอกรหัส 6 หลักที่ส่งไปยัง {verification.email}</p></div><button type="button" onClick={()=>setVerification(null)}>กลับ</button></div>{verification.demoCode&&<div className="verification-demo-code"><strong>รหัสสำหรับระบบจำลอง</strong><span>{verification.demoCode}</span><small>เมื่อใช้งานจริง ระบบจะส่งรหัสทางอีเมลและจะไม่แสดงรหัสบนหน้าจอ</small></div>}<div className="login-field"><label htmlFor="verification-code">รหัสยืนยันอีเมล</label><input id="verification-code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} placeholder="000000" required autoFocus/></div>{error&&<p className="login-error" role="alert">{error}</p>}<button className="login-submit" disabled={submitting}>{submitting?"กำลังยืนยัน…":"ยืนยันอีเมล"}</button></form>;
+
   if (mode === "register") return <form className="login-form registration-account-form" onSubmit={submitRegistration} noValidate>
-    <div className="login-mode-heading"><div><h2>ลงทะเบียนผู้ใช้นอกระบบ</h2><p>สำหรับแพทย์หรือผู้ปฏิบัติงานที่ไม่มีบัญชี KU All-Login</p></div><button type="button" onClick={() => changeMode("login")}>กลับไปเข้าสู่ระบบ</button></div>
+    <div className="login-mode-heading"><div><h2>ขอลงทะเบียนบัญชีแพทย์ภายนอก</h2><p>สำหรับแพทย์ที่ไม่มีบัญชี KU All-Login โดยคำขอต้องผ่านการตรวจสอบก่อนเปิดใช้งาน</p></div><button type="button" onClick={() => changeMode("login")}>กลับไปเข้าสู่ระบบ</button></div>
     <div className="account-photo-upload"><div className="account-photo-preview">{avatarUrl ? <img src={avatarUrl} alt="ตัวอย่างรูปโปรไฟล์"/> : <span aria-hidden="true">＋</span>}</div><div><label htmlFor="register-photo">รูปโปรไฟล์ (ไม่บังคับ)</label><input id="register-photo" type="file" accept="image/jpeg,image/png,image/webp" disabled={submitting} onChange={event => void choosePhoto(event.target.files?.[0])}/><small>{photoLoading ? "กำลังเตรียมรูป…" : "JPG, PNG หรือ WebP ไม่เกิน 5 MB · ครอปตรงกลางเป็นรูปวงกลม"}</small>{avatarUrl && <button type="button" onClick={() => { void choosePhoto(); const input = document.getElementById("register-photo") as HTMLInputElement; input.value = ""; }}>ลบรูป</button>}</div></div>
     <div className="login-field-grid">
       <div className="login-field"><label htmlFor="register-first-name">ชื่อ</label><input id="register-first-name" name="firstName" autoComplete="given-name" required /></div>
       <div className="login-field"><label htmlFor="register-last-name">นามสกุล</label><input id="register-last-name" name="lastName" autoComplete="family-name" required /></div>
-      <div className="login-field"><label htmlFor="register-role">ประเภทผู้ใช้งาน</label><select id="register-role" name="role" defaultValue="doctor" required><option value="doctor">แพทย์</option><option value="staff">บุคลากร</option></select></div>
-      <div className="login-field"><label htmlFor="register-license">เลขใบอนุญาตประกอบวิชาชีพ</label><input id="register-license" name="medicalLicense" autoComplete="off" required /></div>
+      <div className="login-field"><label>ประเภทผู้ใช้งาน</label><input value="แพทย์ภายนอก" readOnly /></div>
+      <div className="login-field"><label htmlFor="register-license">เลขใบอนุญาตประกอบวิชาชีพเวชกรรม</label><input id="register-license" name="medicalLicense" autoComplete="off" required /></div>
+      <div className="login-field"><label htmlFor="register-license-expiry">วันหมดอายุใบอนุญาต (ถ้ามี)</label><BuddhistDateInput id="register-license-expiry" name="licenseExpiresAt"/></div>
+      <div className="login-field"><label htmlFor="register-organization">หน่วยงาน / สถานพยาบาลต้นสังกัด</label><input id="register-organization" name="organization" required /></div>
+      <div className="login-field"><label htmlFor="register-email">อีเมลสำหรับยืนยันตัวตน</label><input id="register-email" name="email" type="email" autoComplete="email" required /></div>
+      <div className="login-field"><label htmlFor="register-phone">หมายเลขโทรศัพท์</label><input id="register-phone" name="phone" type="tel" autoComplete="tel" required /></div>
       <div className="login-field full"><label htmlFor="register-username">สร้าง Username</label><input id="register-username" name="username" autoComplete="username" minLength={4} maxLength={40} pattern="[A-Za-z0-9._-]+" required /></div>
       <div className="login-field"><label htmlFor="register-password">สร้าง Password</label><div className="password-field"><input id="register-password" name="password" type={visible ? "text" : "password"} autoComplete="new-password" minLength={8} required /><button type="button" onClick={() => setVisible(!visible)}>{visible ? "ซ่อน" : "แสดง"}</button></div></div>
       <div className="login-field"><label htmlFor="register-confirm-password">ยืนยัน Password</label><div className="password-field"><input id="register-confirm-password" name="confirmPassword" type={confirmVisible ? "text" : "password"} autoComplete="new-password" minLength={8} required /><button type="button" onClick={() => setConfirmVisible(!confirmVisible)}>{confirmVisible ? "ซ่อน" : "แสดง"}</button></div></div>
     </div>
+    <label className="registration-consent"><input type="checkbox" name="acceptTerms" required/><span>ข้าพเจ้ารับรองว่าข้อมูลและเลขใบอนุญาตเป็นความจริง และยินยอมให้สถานพยาบาลตรวจสอบข้อมูลเพื่อพิจารณาสิทธิ์เข้าใช้งานระบบ</span></label>
     <p className="password-hint">Password ต้องมีอย่างน้อย 8 ตัวอักษร และระบบจะจัดเก็บในรูปแบบแฮช</p>
     {error && <p className="login-error" role="alert">{error}</p>}
-    <button className="login-submit" type="submit" disabled={submitting || photoLoading}>{submitting ? "กำลังสร้างบัญชี…" : "ลงทะเบียน"}</button>
+    <button className="login-submit" type="submit" disabled={submitting || photoLoading}>{submitting ? "กำลังส่งคำขอ…" : "ส่งคำขอลงทะเบียน"}</button>
   </form>;
 
   return <form className="login-form reference-login-form" onSubmit={submitLogin} noValidate>
@@ -115,6 +125,6 @@ export function LoginForm() {
     {error && <p className="login-error" role="alert">{error}</p>}
     {notice && <p className="sso-notice" role="status">{notice}</p>}
     <button className="login-submit" type="submit" disabled={submitting}>{submitting ? "กำลังเข้าสู่ระบบ…" : "เข้าสู่ระบบ"}</button>
-    <button className="register-link-button" type="button" onClick={() => changeMode("register")}>ยังไม่มีบัญชี? ลงทะเบียนผู้ใช้นอกระบบ</button>
+    <button className="register-link-button" type="button" onClick={() => changeMode("register")}>แพทย์ภายนอกยังไม่มีบัญชี? ส่งคำขอลงทะเบียน</button>
   </form>;
 }
