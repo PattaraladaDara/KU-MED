@@ -7,6 +7,7 @@ import { BuddhistDateInput } from "@/components/buddhist-date-input";
 
 type Mode = "login" | "register";
 type LoginAccount = { username: string; role: string; displayName: string; medicalLicense: string; avatarUrl?:string|null };
+type SupportContact={name:string;phone:string;email:string|null;hours:string};
 
 export function LoginForm() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export function LoginForm() {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [supportContact,setSupportContact]=useState<SupportContact|null>(null);
   const [submitting, setSubmitting] = useState(false);
   const usernameRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -44,20 +46,20 @@ export function LoginForm() {
 
   function changeMode(next: Mode) {
     photoVersion.current++; setPhotoLoading(false); setAvatarUrl("");
-    setMode(next); setError(""); setNotice(""); setVisible(false); setConfirmVisible(false);
+    setMode(next); setError(""); setNotice(""); setSupportContact(null); setVisible(false); setConfirmVisible(false);
   }
 
   async function submitLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) return;
     const values = new FormData(event.currentTarget);
-    setError(""); setNotice(""); setSubmitting(true);
+    setError(""); setNotice(""); setSupportContact(null); setSubmitting(true);
     try {
       const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
         username: String(values.get("username") ?? "").trim(), password: String(values.get("password") ?? ""),
       }) });
-      const result = await response.json() as { account?: LoginAccount; error?: string };
-      if (!response.ok || !result.account) throw new Error(result.error || "ไม่สามารถเข้าสู่ระบบได้");
+      const result = await response.json() as { account?: LoginAccount; error?: string;supportContact?:SupportContact };
+      if (!response.ok || !result.account){if(result.supportContact)setSupportContact(result.supportContact);throw new Error(result.error || "ไม่สามารถเข้าสู่ระบบได้");}
       beginDemoSession(result.account);
       router.replace("/dashboard");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "ไม่สามารถเข้าสู่ระบบได้"); }
@@ -123,6 +125,7 @@ export function LoginForm() {
     <div className="login-field"><label htmlFor="username">ชื่อผู้ใช้/รหัสประจำตัว</label><input ref={usernameRef} id="username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="กรอกชื่อผู้ใช้หรือรหัสประจำตัว" required /></div>
     <div className="login-field"><label htmlFor="password">รหัสผ่าน</label><div className="password-field"><input id="password" name="password" type={visible ? "text" : "password"} autoComplete="current-password" placeholder="กรอกรหัสผ่าน" required /><button type="button" className="login-password-toggle" onClick={() => setVisible(!visible)} aria-label={visible ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.8 5.2A10.4 10.4 0 0 1 12 5c5 0 9 7 9 7a17 17 0 0 1-3 3.8M6.1 6.1C4.2 7.5 3 9.3 2 12c0 0 4 7 10 7a10 10 0 0 0 5-1.5"/></svg></button></div></div>
     {error && <p className="login-error" role="alert">{error}</p>}
+    {supportContact&&<aside className="login-support-contact" aria-label="ช่องทางติดต่อเจ้าหน้าที่"><strong>ติดต่อเจ้าหน้าที่เพื่อสอบถามหรือขอทบทวน</strong><span>{supportContact.name}</span><a href={`tel:${supportContact.phone.replace(/[^0-9+]/g,"")}`}>โทร {supportContact.phone}</a>{supportContact.email&&<a href={`mailto:${supportContact.email}`}>อีเมล {supportContact.email}</a>}<small>{supportContact.hours}</small><p>กรุณาแจ้งชื่อผู้ใช้และชื่อ–นามสกุลที่ลงทะเบียน โดยไม่ต้องแจ้งรหัสผ่านหรือรหัส OTP</p></aside>}
     {notice && <p className="sso-notice" role="status">{notice}</p>}
     <button className="login-submit" type="submit" disabled={submitting}>{submitting ? "กำลังเข้าสู่ระบบ…" : "เข้าสู่ระบบ"}</button>
     <button className="register-link-button" type="button" onClick={() => changeMode("register")}>แพทย์ภายนอกยังไม่มีบัญชี? ส่งคำขอลงทะเบียน</button>

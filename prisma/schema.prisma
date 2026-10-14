@@ -40,8 +40,31 @@ model Patient {
   appointments   Appointment[]
   payments       Payment[]
   medicalCertificates MedicalCertificate[]
+  triageAssessments TriageAssessment[]
 
   @@index([firstName, lastName])
+}
+
+model TriageAssessment {
+  id               String   @id @default(cuid())
+  patientId        String
+  assessedAt       DateTime @default(now())
+  assessorUsername String
+  assessorName     String
+  temperature      Float?
+  bloodPressure    String?
+  pulse            Int?
+  oxygenSaturation Int?
+  weightKg         Float?
+  heightCm         Float?
+  chiefComplaint   String
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  patient          Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  treatmentRecord  TreatmentRecord?
+
+  @@index([patientId, assessedAt])
 }
 
 model Appointment {
@@ -111,12 +134,14 @@ model TreatmentRecord {
   treatmentPlan    String?
   medicationOrders String?
   appointmentId    String?  @unique
+  triageAssessmentId String? @unique
   visitSource      String   @default("walk_in")
   appointmentReason String?
   appointmentScheduledAt DateTime?
   createdAt        DateTime @default(now())
   patient          Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   appointment      Appointment? @relation("AppointmentResultTreatment", fields: [appointmentId], references: [id], onDelete: SetNull)
+  triageAssessment TriageAssessment? @relation(fields: [triageAssessmentId], references: [id], onDelete: SetNull)
   createdAppointments Appointment[] @relation("AppointmentOriginTreatment")
   medicalCertificates MedicalCertificate[]
 

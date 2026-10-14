@@ -4,6 +4,7 @@ import { hashPassword } from "@/lib/password";
 import { text } from "@/lib/api-validation";
 import { validProfilePhoto } from "@/lib/profile-photo";
 import { createHash, randomInt } from "node:crypto";
+import { sendVerificationEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -39,8 +40,18 @@ export async function POST(request: NextRequest) {
     await db.accountAuditLog.create({data:{accountId:created.id,actorKey:username,action:"registration_submitted",toStatus:"pending_email",note:"ส่งคำขอลงทะเบียนบัญชีแพทย์ภายนอก"}});
     return created;
     });
-    return NextResponse.json({account,demoVerificationCode:process.env.AUTH_EMAIL_MOCK==="false"?undefined:verificationCode,message:"ส่งรหัสยืนยันไปยังอีเมลแล้ว"},{status:201});
-  } catch {
+    const mockEmail=process.env.AUTH_EMAIL_MOCK!=="false";
+    if(!mockEmail){
+      try{await sendVerificationEmail({...account,email},verificationCode);}
+      catch(error){
+        await getDb().staffAccount.delete({where:{id:account.id}}).catch(()=>undefined);
+        console.error("Unable to send registration OTP",error);
+        return NextResponse.json({error:"ไม่สามารถส่งรหัส OTP ไปยังอีเมลได้ กรุณาตรวจสอบการตั้งค่าอีเมลหรือลองใหม่"},{status:503});
+      }
+    }
+    return NextResponse.json({account,demoVerificationCode:mockEmail?verificationCode:undefined,message:mockEmail?"สร้างรหัส OTP สำหรับระบบจำลองแล้ว":"ส่งรหัส OTP ไปยังอีเมลแล้ว"},{status:201});
+  } catch(error) {
+    console.error("Unable to create account",error);
     return NextResponse.json({ error: "ไม่สามารถสร้างบัญชีได้ กรุณาลองใหม่" }, { status: 503 });
   }
 }

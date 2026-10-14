@@ -56,6 +56,17 @@ services:
       CITIZEN_CARD_READER_TOKEN: ${CITIZEN_CARD_READER_TOKEN:-}
       KU_ALLLOGIN_URL: ${KU_ALLLOGIN_URL:-}
       AUTH_EMAIL_MOCK: ${AUTH_EMAIL_MOCK:-true}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      SUPPORT_NAME: ${SUPPORT_NAME:-งานบริการผู้ใช้งาน สถานพยาบาลมหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตกำแพงแสน}
+      SUPPORT_PHONE: ${SUPPORT_PHONE:-034-351611}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
+      SUPPORT_HOURS: ${SUPPORT_HOURS:-วันจันทร์–ศุกร์ เวลา 08:30–16:30 น. (ยกเว้นวันหยุดราชการ)}
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
     depends_on:

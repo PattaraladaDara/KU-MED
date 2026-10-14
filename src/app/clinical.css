@@ -833,6 +833,7 @@
 .account-action{min-height:40px;padding:9px 15px;border-radius:8px;font:600 11px "Sarabun",sans-serif;cursor:pointer;transition:background-color .16s,border-color .16s,box-shadow .16s,transform .16s}.account-action:hover:not(:disabled){transform:translateY(-1px)}.account-action:disabled{cursor:not-allowed;opacity:.55}.account-action.approve{border:1px solid #087158;background:#087158;color:#fff}.account-action.approve:hover:not(:disabled){background:#065b47;box-shadow:0 5px 13px #08715835}.account-action.suspend{border:1px solid #d28a21;background:#fff7e7;color:#9a6214}.account-action.suspend:hover:not(:disabled){background:#ffedc8;box-shadow:0 5px 13px #b9761c28}.account-action.reject{border:1px solid #d86459;background:#fff1ef;color:#b43d34}.account-action.reject:hover:not(:disabled){background:#ffe2de;box-shadow:0 5px 13px #b43d3428}.account-action.changes{border:1px solid #4b82bd;background:#eef6ff;color:#2f669f}.account-action.changes:hover:not(:disabled){background:#deedff;box-shadow:0 5px 13px #356fae28}
 .account-decision-toast.tone-approved{border-color:#86cdb4;background:#eefaf5;color:#075f49}.account-decision-toast.tone-approved .update-toast-icon{background:#087d61;color:#fff}.account-decision-toast.tone-suspended{border-color:#e2b66c;background:#fff8e9;color:#875711}.account-decision-toast.tone-suspended .update-toast-icon{background:#d28a21;color:#fff}.account-decision-toast.tone-rejected{border-color:#e3a39d;background:#fff1ef;color:#9f352d}.account-decision-toast.tone-rejected .update-toast-icon{background:#c94d43;color:#fff}.account-decision-toast.tone-changes_requested{border-color:#9bbcdf;background:#eef6ff;color:#2d5f94}.account-decision-toast.tone-changes_requested .update-toast-icon{background:#427db8;color:#fff}
 .account-action.completed,.account-action.completed:disabled{border:1px solid #c8d0cd;background:#e7ebe9;color:#78847f;opacity:1}.account-confirm-backdrop{position:fixed;z-index:2000;inset:0;display:grid;place-items:center;padding:20px;background:#132f2866;backdrop-filter:blur(2px)}.account-confirm-dialog{width:min(420px,100%);padding:24px;border:1px solid #d9e4df;border-radius:16px;background:#fff;text-align:center;box-shadow:0 24px 70px #102b2450}.account-confirm-dialog .confirm-symbol{display:grid;width:52px;height:52px;margin:0 auto 13px;place-items:center;border-radius:50%;font-size:24px;font-weight:700}.account-confirm-dialog h3{margin:0;color:#173d32;font:700 19px/1.4 "Prompt",sans-serif}.account-confirm-dialog>p{margin:7px 0 20px;color:#61736c;font:400 12px/1.6 "Sarabun",sans-serif}.account-confirm-dialog>div{display:grid;grid-template-columns:1fr 1fr;gap:9px}.account-confirm-dialog>div button{width:100%}.account-confirm-dialog.confirm-approved .confirm-symbol{background:#dff5ec;color:#087158}.account-confirm-dialog.confirm-suspended .confirm-symbol{background:#fff0d3;color:#ad6e16}.account-confirm-dialog.confirm-rejected .confirm-symbol{background:#fde7e4;color:#b43d34}.account-confirm-dialog.confirm-changes_requested .confirm-symbol{background:#e6f1fc;color:#356fae}
+.read-only-notice{display:flex;align-items:center;gap:10px;margin:12px 0;padding:11px 14px;border:1px solid #b9cde2;border-radius:10px;background:#eef6ff;color:#315f8c}.read-only-notice strong{white-space:nowrap}.read-only-notice span{font-size:11px;line-height:1.5}
 
 /* Patient workspace proportions from the supplied treatment/appointment/payment references. */
 @media screen {
@@ -1359,3 +1360,23 @@
   .official-report-signatures span { display:block!important; }
   .official-report-audit { display:block!important; margin-top:8mm!important; color:#555!important; font-size:11pt!important; text-align:right!important; }
 }
+
+.patient-document-actions { margin:18px 0; }
+.patient-document-actions article { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:18px; border:1px solid #d7e4df; border-radius:14px; background:#f8fbfa; }
+.patient-document-actions article div { display:grid; gap:4px; }
+.patient-document-actions article strong,.document-registry>h3 { color:#173d32; }
+.patient-document-actions article span { color:#667b73; }
+.document-registry { margin-top:22px; }
+.document-registry>h3 { margin:0 0 12px; }
+
+.triage-history { display:grid; gap:14px; margin-top:20px; }
+.triage-history>article { padding:18px; border:1px solid #d8e5e0; border-radius:14px; background:#fff; }
+.triage-history>article>header { display:flex; justify-content:space-between; gap:16px; margin-bottom:14px; color:#315a4d; }
+.triage-history>article>p { margin:14px 0 4px; color:#243f36; }
+.triage-history>article>small { color:#6b7d77; }
+
+.triage-prefill { padding:16px 18px; border:1px solid #a9d8c8; border-radius:14px; background:#eefaf5; color:#244a3d; }
+.triage-prefill strong,.triage-prefill span,.triage-prefill small { display:block; }
+.triage-prefill span,.triage-prefill small { margin-top:4px; color:#607970; }
+.triage-prefill p { margin:10px 0 0; font-weight:600; }
+.record-form input[readonly],.record-form textarea[readonly] { background:#f1f5f3; color:#496158; cursor:not-allowed; }

@@ -14,7 +14,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     const db=getDb();const now=new Date();const today=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(now);const close=parseBangkokDateTime(`${today}T15:30`);const missedBefore=now>=close?close:new Date(close.getTime()-86400000);
     await db.appointment.updateMany({where:{patientId:id,status:"scheduled",scheduledAt:{lt:missedBefore}},data:{status:"no_show"}});
     const patient = await db.patient.findUnique({ where:{ id }, include:{
-      treatments:{ orderBy:{ visitedAt:"desc" } }, appointments:{ orderBy:{ scheduledAt:"desc" } }, payments:{ orderBy:{ paidAt:"desc" },omit:{slipData:true} },
+      treatments:{ orderBy:{ visitedAt:"desc" } }, triageAssessments:{orderBy:{assessedAt:"desc"},take:10}, appointments:{ orderBy:{ scheduledAt:"desc" } }, payments:{ orderBy:{ paidAt:"desc" },omit:{slipData:true} },
     } });
     if (!patient) return NextResponse.json({ error:"ไม่พบข้อมูลผู้ใช้บริการ" },{status:404});
     return NextResponse.json({ patient });
@@ -33,7 +33,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const diagnosisCode=text(body.diagnosisCode).toUpperCase();
       const icd10=diagnosisCode?ICD10_ENTRIES.find((entry)=>entry.code===diagnosisCode):null;
       if(diagnosisCode&&!icd10)return NextResponse.json({error:"กรุณาเลือกรหัส ICD-10 จากรายการที่มีในระบบ"},{status:400});
-      const diagnosis=icd10?.description||text(body.chiefComplaint)||"ไม่ระบุการวินิจฉัย";
+      const triageAssessmentId=text(body.triageAssessmentId);const triage=triageAssessmentId?await getDb().triageAssessment.findFirst({where:{id:triageAssessmentId,patientId:id,treatmentRecord:null}}):null;
+      if(triageAssessmentId&&!triage)return NextResponse.json({error:"ไม่พบข้อมูลคัดกรองที่พร้อมใช้ หรือข้อมูลนี้ถูกเชื่อมกับการตรวจแล้ว"},{status:404});
+      const diagnosis=icd10?.description||triage?.chiefComplaint||text(body.chiefComplaint)||"ไม่ระบุการวินิจฉัย";
       const numeric=(value:unknown)=>{const result=Number(value);return Number.isFinite(result)&&String(value).trim()?result:null;};
       const integer=(value:unknown)=>{const result=numeric(value);return result===null?null:Math.round(result);};
       // Use authoritative server time so the service timestamp cannot be edited in the browser.
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const visitDate=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(visitedAt);
       if(linkedAppointment){const appointmentDate=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(linkedAppointment.scheduledAt);const today=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(new Date());if(appointmentDate!==today||visitDate!==appointmentDate)return NextResponse.json({error:"บันทึกการตรวจตามนัดได้เฉพาะในวันนัดหมาย"},{status:400});}
       const record=await getDb().$transaction(async db=>{
-        const created=await db.treatmentRecord.create({data:{patientId:id,visitedAt,department,diagnosis,visitType,clinician:optionalText(body.clinician),paymentType:patient.coverage,visitNumber:optionalText(body.visitNumber),temperature:numeric(body.temperature),bloodPressure:optionalText(body.bloodPressure),pulse:integer(body.pulse),oxygenSaturation:integer(body.oxygenSaturation),weightKg:numeric(body.weightKg),heightCm:numeric(body.heightCm),chiefComplaint:optionalText(body.chiefComplaint),diagnosisCode:diagnosisCode||null,diagnosisName:icd10?.description??null,treatmentPlan:optionalText(body.treatmentPlan),medicationOrders:optionalText(body.medicationOrders),appointmentId:linkedAppointment?.id??null,visitSource:linkedAppointment?"appointment":"walk_in",appointmentReason:linkedAppointment?.reason??null,appointmentScheduledAt:linkedAppointment?.scheduledAt??null}});
+        const created=await db.treatmentRecord.create({data:{patientId:id,visitedAt,department,diagnosis,visitType,clinician:optionalText(body.clinician),paymentType:patient.coverage,visitNumber:optionalText(body.visitNumber),temperature:triage?.temperature??numeric(body.temperature),bloodPressure:triage?.bloodPressure??optionalText(body.bloodPressure),pulse:triage?.pulse??integer(body.pulse),oxygenSaturation:triage?.oxygenSaturation??integer(body.oxygenSaturation),weightKg:triage?.weightKg??numeric(body.weightKg),heightCm:triage?.heightCm??numeric(body.heightCm),chiefComplaint:triage?.chiefComplaint??optionalText(body.chiefComplaint),diagnosisCode:diagnosisCode||null,diagnosisName:icd10?.description??null,treatmentPlan:optionalText(body.treatmentPlan),medicationOrders:optionalText(body.medicationOrders),appointmentId:linkedAppointment?.id??null,triageAssessmentId:triage?.id??null,visitSource:linkedAppointment?"appointment":"walk_in",appointmentReason:linkedAppointment?.reason??null,appointmentScheduledAt:linkedAppointment?.scheduledAt??null}});
         if(linkedAppointment)await db.appointment.update({where:{id:linkedAppointment.id},data:{status:"completed"}});
         return created;
       });
