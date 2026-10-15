@@ -10,6 +10,7 @@ export async function GET(_request:NextRequest,{params}:{params:Promise<{id:stri
   const{id,paymentId}=await params;
   const payment=await getDb().payment.findFirst({where:{id:paymentId,patientId:id},include:{patient:{select:{title:true,firstName:true,lastName:true,studentId:true}}}});
   if(!payment)return NextResponse.json({error:"ไม่พบใบเสร็จ"},{status:404});
+  if(payment.status!=="paid")return NextResponse.json({error:"ออกใบเสร็จได้เมื่อยืนยันการชำระเงินแล้วเท่านั้น"},{status:409});
 
   const receiptNumber=payment.receiptNumber||payment.referenceCode;
   const date=new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE,{dateStyle:"long",timeStyle:"short",timeZone:THAI_TIME_ZONE}).format(payment.paidAt);
@@ -45,16 +46,22 @@ export async function GET(_request:NextRequest,{params}:{params:Promise<{id:stri
     </main>
     <footer class="receipt-footer"><div><strong>สอบถามเพิ่มเติม / แจ้งเปลี่ยนกำหนดการนัด</strong><span>☎ โทร 034-351611</span></div><address>สถานพยาบาล มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตกำแพงแสน<br>เลขที่ 1 หมู่ 6 ถนนมาลัยแมน ตำบลกำแพงแสน<br>อำเภอกำแพงแสน จังหวัดนครปฐม 73140</address></footer>
   </article>
-  <div class="actions"><button type="button" onclick="window.print()">พิมพ์ / บันทึกเป็น PDF</button></div>
+  <div class="actions"><button type="button" onclick="printReady()">พิมพ์ / บันทึกเป็น PDF</button></div>
   <script>
-    window.addEventListener("load",async()=>{
+    async function printReady(){
       try{
-        if(document.fonts?.ready)await document.fonts.ready;
+        if(document.fonts)await Promise.allSettled([
+          document.fonts.load('400 16px "TH Sarabun New"'),
+          document.fonts.load('700 16px "TH Sarabun New"'),
+          document.fonts.ready
+        ]);
         await Promise.all(Array.from(document.images).map(image=>image.complete?Promise.resolve():new Promise(resolve=>{image.addEventListener("load",resolve,{once:true});image.addEventListener("error",resolve,{once:true});})));
       }finally{
-        window.setTimeout(()=>window.print(),150);
+        await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+        window.print();
       }
-    });
+    }
+    window.addEventListener("load",()=>{void printReady();});
   </script>
 </body>
 </html>`;

@@ -103,6 +103,9 @@ model Payment {
   changeSatang   Int?
   qrPayload      String?
   confirmedAt    DateTime?
+  reviewedByUsername String?
+  reviewedByName String?
+  reviewNote     String?
   slipFileName   String?
   slipMimeType   String?
   slipData       Bytes?
@@ -142,11 +145,60 @@ model TreatmentRecord {
   patient          Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   appointment      Appointment? @relation("AppointmentResultTreatment", fields: [appointmentId], references: [id], onDelete: SetNull)
   triageAssessment TriageAssessment? @relation(fields: [triageAssessmentId], references: [id], onDelete: SetNull)
+  medicationDispense MedicationDispense?
   createdAppointments Appointment[] @relation("AppointmentOriginTreatment")
   medicalCertificates MedicalCertificate[]
 
   @@index([patientId, visitedAt])
   @@index([visitSource, visitedAt])
+}
+
+model MedicationDispense {
+  id                 String   @id @default(cuid())
+  treatmentRecordId  String   @unique
+  status             String   @default("pending")
+  notes              String?
+  pharmacistUsername String?
+  pharmacistName     String?
+  dispensedAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  treatmentRecord    TreatmentRecord @relation(fields: [treatmentRecordId], references: [id], onDelete: Cascade)
+
+  @@index([status, updatedAt])
+}
+
+model FinancialBudget {
+  id              String   @id @default(cuid())
+  fiscalYear      Int
+  category        String
+  allocatedSatang Int
+  notes           String?
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([fiscalYear, category])
+  @@index([fiscalYear])
+}
+
+model FinancialExpense {
+  id            String   @id @default(cuid())
+  expenseDate   DateTime @default(now())
+  referenceCode String   @unique
+  category      String
+  description   String
+  payee         String
+  amountSatang  Int
+  status        String   @default("pending")
+  notes         String?
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([expenseDate])
+  @@index([status, expenseDate])
+  @@index([category, expenseDate])
 }
 
 model Evaluation {

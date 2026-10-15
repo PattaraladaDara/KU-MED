@@ -22,7 +22,7 @@ function maskName(firstName: string, lastName: string) {
 export async function GET() {
   try {
     const db = getDb(), today = bangkokDayRange(), weekStart = new Date(today.start.getTime() - 6 * 86400000);
-    const [newPatients, treatments, appointments, payments, weekTreatments] = await Promise.all([
+    const [newPatients, treatments, appointments, payments, weekTreatments, pendingTriages, pendingMedications] = await Promise.all([
       db.patient.count({ where: { createdAt: { gte: today.start, lt: today.end } } }),
       db.treatmentRecord.findMany({
         where: { visitedAt: { gte: today.start, lt: today.end } },
@@ -35,9 +35,33 @@ export async function GET() {
       }),
       db.payment.findMany({
         where: { paidAt: { gte: today.start, lt: today.end } },
-        select: { amountSatang: true, method: true, status: true },
+        select: { id: true, patientId: true, paidAt: true, description: true, amountSatang: true, method: true, status: true, patient: { select: { firstName: true, lastName: true } } },
       }),
       db.treatmentRecord.findMany({ where: { visitedAt: { gte: weekStart, lt: today.end } }, select: { visitedAt: true } }),
+      db.triageAssessment.findMany({
+        where: { treatmentRecord: null },
+        select: { id: true, patientId: true, assessedAt: true, chiefComplaint: true, patient: { select: { firstName: true, lastName: true } } },
+        orderBy: { assessedAt: "desc" }, take: 20,
+      }),
+      db.treatmentRecord.findMany({
+        where: { medicationOrders: { not: null }, OR: [{ medicationDispense: null }, { medicationDispense: { is: { status: { not: "dispensed" } } } }] },
+        select: { id: true, patientId: true, visitedAt: true, medicationOrders: true, patient: { select: { firstName: true, lastName: true } }, medicationDispense: { select: { status: true } } },
+        orderBy: { visitedAt: "desc" }, take: 20,
+      }),
+    ]);
+
+    const yesterday={start:new Date(today.start.getTime()-86400000),end:today.start};
+    const [bangkokYear,bangkokMonth]=dateKey(new Date()).split("-").map(Number),fiscalYear=bangkokMonth>=10?bangkokYear+1:bangkokYear;
+    const fiscalStart=new Date(Date.UTC(fiscalYear-1,9,1)-7*3600000),fiscalEnd=new Date(Date.UTC(fiscalYear,9,1)-7*3600000);
+    const [previousVisits,previousNewPatients,previousAppointments,previousPayments,kpiTreatments,dispensedToday,budgets,expenses]=await Promise.all([
+      db.treatmentRecord.count({where:{visitedAt:{gte:yesterday.start,lt:yesterday.end}}}),
+      db.patient.count({where:{createdAt:{gte:yesterday.start,lt:yesterday.end}}}),
+      db.appointment.count({where:{scheduledAt:{gte:yesterday.start,lt:yesterday.end}}}),
+      db.payment.findMany({where:{paidAt:{gte:yesterday.start,lt:yesterday.end},status:"paid"},select:{amountSatang:true}}),
+      db.treatmentRecord.findMany({where:{visitedAt:{gte:today.start,lt:today.end},triageAssessmentId:{not:null}},select:{visitedAt:true,triageAssessment:{select:{assessedAt:true}}}}),
+      db.medicationDispense.findMany({where:{dispensedAt:{gte:today.start,lt:today.end},status:"dispensed"},select:{dispensedAt:true,treatmentRecord:{select:{visitedAt:true}}}}),
+      db.financialBudget.findMany({where:{fiscalYear},select:{allocatedSatang:true}}),
+      db.financialExpense.findMany({where:{expenseDate:{gte:fiscalStart,lt:fiscalEnd},status:{in:["approved","paid"]}},select:{amountSatang:true}}),
     ]);
 
     const treatedPatients = new Set(treatments.map(item => item.patientId));
@@ -64,6 +88,10 @@ export async function GET() {
       const date = new Date(weekStart.getTime() + index * 86400000), key = dateKey(date);
       return { date: date.toISOString(), count: weekTreatments.filter(item => dateKey(item.visitedAt) === key).length };
     });
+    const average=(values:number[])=>values.length?Math.round(values.reduce((sum,value)=>sum+value,0)/values.length):null;
+    const triageWaitMinutes=average(kpiTreatments.flatMap(item=>item.triageAssessment?[Math.max(0,(item.visitedAt.getTime()-item.triageAssessment.assessedAt.getTime())/60000)]:[]));
+    const dispenseMinutes=average(dispensedToday.flatMap(item=>item.dispensedAt?[Math.max(0,(item.dispensedAt.getTime()-item.treatmentRecord.visitedAt.getTime())/60000)]:[]));
+    const allocatedSatang=budgets.reduce((sum,item)=>sum+item.allocatedSatang,0),committedSatang=expenses.reduce((sum,item)=>sum+item.amountSatang,0);
 
     return NextResponse.json({
       updatedAt: new Date().toISOString(),
@@ -73,10 +101,26 @@ export async function GET() {
         waiting: queue.filter(item => item.status === "waiting").length,
       },
       queue, rooms: [...rooms].map(([name, value]) => ({ name, ...value })), trend,
+      pendingTriages: pendingTriages.map(item => ({
+        id: item.id, patientId: item.patientId, assessedAt: item.assessedAt.toISOString(),
+        patientName: maskName(item.patient.firstName, item.patient.lastName), chiefComplaint: item.chiefComplaint,
+      })),
+      pendingMedications: pendingMedications.map(item => ({
+        id: item.id, patientId: item.patientId, orderedAt: item.visitedAt.toISOString(),
+        patientName: maskName(item.patient.firstName, item.patient.lastName), status: item.medicationDispense?.status ?? "pending",
+      })),
+      pendingPayments: payments.filter(item=>item.method==="โอนเงิน"&&item.status!=="paid").map(item=>({
+        id:item.id,patientId:item.patientId,createdAt:item.paidAt.toISOString(),patientName:maskName(item.patient.firstName,item.patient.lastName),description:item.description,status:item.status,
+      })),
       finance: {
         totalSatang: paid.reduce((sum, item) => sum + item.amountSatang, 0),
         cashSatang: moneyByMethod("เงินสด"), transferSatang: moneyByMethod("โอนเงิน"),
         coverageCount: paid.filter(item => item.method === "สิทธิการรักษา").length, pendingTransfers,
+      },
+      executive:{
+        previous:{visits:previousVisits,newPatients:previousNewPatients,appointments:previousAppointments,revenueSatang:previousPayments.reduce((sum,item)=>sum+item.amountSatang,0)},
+        quality:{averageTriageWaitMinutes:triageWaitMinutes,averageDispenseMinutes:dispenseMinutes,noShowRate:appointments.length?Math.round(appointments.filter(item=>item.status==="no_show").length/appointments.length*100):0},
+        budget:{fiscalYear,allocatedSatang,committedSatang,remainingSatang:allocatedSatang-committedSatang,utilizationPercent:allocatedSatang?Math.round(committedSatang/allocatedSatang*100):0},
       },
     });
   } catch {

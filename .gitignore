@@ -6,3 +6,5 @@ src/generated/
 !.env.example
 *.tsbuildinfo
 *.log
+.scannerwork/
+.sonar/

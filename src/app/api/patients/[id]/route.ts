@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { getDb } from "@/lib/db";
 import { isUniqueError, optionalText, text } from "@/lib/api-validation";
 import { parseBangkokDate, parseBangkokDateTime, THAI_TIME_ZONE } from "@/lib/thai-date";
@@ -14,7 +15,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     const db=getDb();const now=new Date();const today=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(now);const close=parseBangkokDateTime(`${today}T15:30`);const missedBefore=now>=close?close:new Date(close.getTime()-86400000);
     await db.appointment.updateMany({where:{patientId:id,status:"scheduled",scheduledAt:{lt:missedBefore}},data:{status:"no_show"}});
     const patient = await db.patient.findUnique({ where:{ id }, include:{
-      treatments:{ orderBy:{ visitedAt:"desc" } }, triageAssessments:{orderBy:{assessedAt:"desc"},take:10}, appointments:{ orderBy:{ scheduledAt:"desc" } }, payments:{ orderBy:{ paidAt:"desc" },omit:{slipData:true} },
+      treatments:{ orderBy:{ visitedAt:"desc" },include:{medicationDispense:true} }, triageAssessments:{orderBy:{assessedAt:"desc"},take:10}, appointments:{ orderBy:{ scheduledAt:"desc" } }, payments:{ orderBy:{ paidAt:"desc" },omit:{slipData:true} },
     } });
     if (!patient) return NextResponse.json({ error:"ไม่พบข้อมูลผู้ใช้บริการ" },{status:404});
     return NextResponse.json({ patient });
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (kind==="payment") {
       const amount=Number(body.amount),description=text(body.description),method=text(body.method);
       if(!Number.isFinite(amount)||amount<0||!description||!["เงินสด","โอนเงิน","สิทธิการรักษา"].includes(method))return NextResponse.json({error:"กรุณากรอกข้อมูลการชำระเงินให้ถูกต้อง"},{status:400});
-      const amountSatang=Math.round(amount*100),stamp=Date.now(),referenceCode=`PAY-${stamp}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
+      const amountSatang=Math.round(amount*100),stamp=Date.now(),referenceCode=`PAY-${stamp}-${randomBytes(3).toString("hex").toUpperCase()}`;
       const received=method==="เงินสด"?Number(body.receivedAmount):amount;
       if(method==="เงินสด"&&(!Number.isFinite(received)||received<amount))return NextResponse.json({error:"จำนวนเงินที่รับมาต้องไม่น้อยกว่ายอดชำระ"},{status:400});
       const receivedSatang=method==="เงินสด"?Math.round(received*100):null;

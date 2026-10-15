@@ -1,0 +1,10 @@
+import { NextRequest,NextResponse } from "next/server";
+import { getDb } from "@/lib/db";
+import { optionalText,text } from "@/lib/api-validation";
+
+export const runtime="nodejs";
+const statuses=new Set(["pending","preparing","ready","dispensed","unable"]);
+
+export async function GET(_request:NextRequest,{params}:{params:Promise<{id:string}>}){try{const{id}=await params;const records=await getDb().treatmentRecord.findMany({where:{patientId:id,medicationOrders:{not:null}},select:{id:true,visitedAt:true,clinician:true,diagnosis:true,diagnosisCode:true,diagnosisName:true,medicationOrders:true,medicationDispense:true},orderBy:{visitedAt:"desc"}});return NextResponse.json({records});}catch{return NextResponse.json({error:"ไม่สามารถโหลดรายการยาได้"},{status:503});}}
+
+export async function PATCH(request:NextRequest,{params}:{params:Promise<{id:string}>}){try{const{id}=await params;const body=await request.json() as Record<string,unknown>;const treatmentRecordId=text(body.treatmentRecordId),status=text(body.status),pharmacistUsername=text(body.pharmacistUsername),pharmacistName=text(body.pharmacistName);if(!treatmentRecordId||!statuses.has(status)||!pharmacistUsername||!pharmacistName)return NextResponse.json({error:"ข้อมูลการดำเนินการจ่ายยาไม่ครบถ้วน"},{status:400});const record=await getDb().treatmentRecord.findFirst({where:{id:treatmentRecordId,patientId:id,medicationOrders:{not:null}},select:{id:true}});if(!record)return NextResponse.json({error:"ไม่พบใบสั่งยาของผู้ป่วยรายนี้"},{status:404});const dispense=await getDb().medicationDispense.upsert({where:{treatmentRecordId},create:{treatmentRecordId,status,notes:optionalText(body.notes),pharmacistUsername,pharmacistName,dispensedAt:status==="dispensed"?new Date():null},update:{status,notes:optionalText(body.notes),pharmacistUsername,pharmacistName,dispensedAt:status==="dispensed"?new Date():null}});return NextResponse.json({dispense});}catch{return NextResponse.json({error:"ไม่สามารถอัปเดตสถานะการจ่ายยาได้"},{status:503});}}
