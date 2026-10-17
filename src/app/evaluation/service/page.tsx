@@ -1,0 +1,2 @@
+import type { Metadata } from "next";import { AppShell } from "@/components/app-shell";import { ServiceEvaluationResults } from "@/components/service-evaluation-results";import { availableAssets } from "@/lib/design-assets";import "../../clinical.css";
+export const metadata:Metadata={title:"ผลประเมินการให้บริการ | KU-MED"};export default function Page(){return <AppShell assets={availableAssets()}><ServiceEvaluationResults/></AppShell>}

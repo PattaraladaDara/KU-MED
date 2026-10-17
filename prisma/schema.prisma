@@ -238,10 +238,47 @@ model Evaluation {
   supportNeeded         String?
   actionPlan            String?
   reviewDate            DateTime?
+  externalFormId        String?
+  externalResponseId    String?   @unique
+  sourceAnswers         Json?
+  sourceSubmittedAt     DateTime?
   createdAt             DateTime  @default(now())
 
   @@index([employeeCode, createdAt])
   @@index([assessedUserKey, createdAt])
+}
+
+model GoogleFormConnection {
+  id                 String               @id @default("service-evaluation")
+  formId             String               @unique
+  formUrl            String
+  sheetCsvUrl        String
+  title              String?
+  revisionId         String?
+  status             String               @default("pending")
+  lastSchemaSyncAt   DateTime?
+  lastResponseSyncAt DateTime?
+  lastError          String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  questions          GoogleFormQuestion[]
+}
+
+model GoogleFormQuestion {
+  id           String               @id @default(cuid())
+  connectionId String
+  questionId   String
+  title        String
+  questionType String
+  metricKey    String?
+  active       Boolean              @default(true)
+  firstSeenAt  DateTime             @default(now())
+  lastSeenAt   DateTime             @default(now())
+  connection   GoogleFormConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, questionId])
+  @@index([connectionId, active])
+  @@index([connectionId, metricKey])
 }
 
 model UserSettings {

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -19,7 +19,9 @@ function maskName(firstName: string, lastName: string) {
   return `${firstName} ${surname}`.trim();
 }
 
-export async function GET() {
+const evaluationUnitByRole:Record<string,string>={doctor:"แพทย์",staff:"เวชระเบียน",nurse:"พยาบาล",pharmacist:"เภสัชกรรม",finance:"การเงิน"};
+
+export async function GET(request:NextRequest) {
   try {
     const db = getDb(), today = bangkokDayRange(), weekStart = new Date(today.start.getTime() - 6 * 86400000);
     const [newPatients, treatments, appointments, payments, weekTreatments, pendingTriages, pendingMedications] = await Promise.all([
@@ -92,6 +94,14 @@ export async function GET() {
     const triageWaitMinutes=average(kpiTreatments.flatMap(item=>item.triageAssessment?[Math.max(0,(item.visitedAt.getTime()-item.triageAssessment.assessedAt.getTime())/60000)]:[]));
     const dispenseMinutes=average(dispensedToday.flatMap(item=>item.dispensedAt?[Math.max(0,(item.dispensedAt.getTime()-item.treatmentRecord.visitedAt.getTime())/60000)]:[]));
     const allocatedSatang=budgets.reduce((sum,item)=>sum+item.allocatedSatang,0),committedSatang=expenses.reduce((sum,item)=>sum+item.amountSatang,0);
+    const userKey=request.nextUrl.searchParams.get("userKey")||"";
+    const dashboardAccount=userKey?await db.staffAccount.findUnique({where:{username:userKey},select:{role:true}}):null;
+    const dashboardRole=dashboardAccount?.role||"staff",serviceUnit=evaluationUnitByRole[dashboardRole];
+    const[systemEvaluations,serviceEvaluations]=await Promise.all([
+      db.evaluation.findMany({where:{assessmentType:"system"},select:{serviceScore:true}}),
+      db.evaluation.findMany({where:{assessmentType:"service",...(dashboardRole!=="admin"&&dashboardRole!=="executive"&&serviceUnit?{serviceUnit}:{})},select:{qualityScore:true,responsibilityScore:true,serviceScore:true}}),
+    ]);
+    const decimalAverage=(values:number[])=>values.length?Math.round(values.reduce((sum,value)=>sum+value,0)/values.length*10)/10:0;
 
     return NextResponse.json({
       updatedAt: new Date().toISOString(),
@@ -121,6 +131,10 @@ export async function GET() {
         previous:{visits:previousVisits,newPatients:previousNewPatients,appointments:previousAppointments,revenueSatang:previousPayments.reduce((sum,item)=>sum+item.amountSatang,0)},
         quality:{averageTriageWaitMinutes:triageWaitMinutes,averageDispenseMinutes:dispenseMinutes,noShowRate:appointments.length?Math.round(appointments.filter(item=>item.status==="no_show").length/appointments.length*100):0},
         budget:{fiscalYear,allocatedSatang,committedSatang,remainingSatang:allocatedSatang-committedSatang,utilizationPercent:allocatedSatang?Math.round(committedSatang/allocatedSatang*100):0},
+      },
+      evaluations:{
+        system:{responses:systemEvaluations.length,average:decimalAverage(systemEvaluations.map(item=>item.serviceScore))},
+        service:{responses:serviceEvaluations.length,overall:decimalAverage(serviceEvaluations.map(item=>item.qualityScore)),staff:decimalAverage(serviceEvaluations.map(item=>item.responsibilityScore)),speed:decimalAverage(serviceEvaluations.map(item=>item.serviceScore))},
       },
     });
   } catch {

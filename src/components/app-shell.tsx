@@ -15,7 +15,7 @@ const navigation = [
   { href: "/search", label: "ค้นหา", icon: "search" },
   { href: "/registration", label: "ลงทะเบียนผู้ป่วยใหม่", icon: "registration" },
   { href: "/reports", label: "รายงาน", icon: "reports" },
-  { href: "/evaluation", label: "แบบประเมินการทำงาน", icon: "evaluation" },
+  { href: "/evaluation", label: "การประเมิน", icon: "evaluation" },
 ] as const;
 
 type NotificationItem={id:string;title:string;detail:string;time:string;href:string;tone:"info"|"warning"|"success"};
@@ -40,6 +40,8 @@ function SearchSubmenu() {
   const patientSections=[["general","ข้อมูลทั่วไป",true],["intake","คัดกรอง",can(role,"intake:view")],["treatments","ประวัติการรักษา",can(role,"clinical:view")],["appointments","การนัดหมาย",can(role,"appointments:view")],["medications","รายการยา",can(role,"medications:view")],["payments","การชำระเงิน",can(role,"payments:view")],["documents","เอกสาร",can(role,"documents:print")||can(role,"certificates:issue")]] as const;
   return <div className="search-submenu" aria-label="หมวดข้อมูลผู้ป่วย"><div className="search-submenu-patient"><small>กำลังดูผู้ป่วย</small><strong>{patient?`${patient.title}${patient.firstName} ${patient.lastName.charAt(0)}.`:"กำลังโหลด..."}</strong><span>{maskedStudentId}</span></div>{patientSections.filter(([, ,visible])=>visible).map(([tab,label]) => <Link key={tab} href={`${pathname}?tab=${tab}`} aria-current={selected===tab?"page":undefined} title={`เปิด${label}ของผู้ป่วยคนปัจจุบัน`}><span className="submenu-dot" aria-hidden="true"/><span className="submenu-label">{label}</span></Link>)}</div>;
 }
+
+function EvaluationSubmenu(){const pathname=usePathname();const items=[["/evaluation/system","ประเมินระบบ"],["/evaluation/service","ผลประเมินการให้บริการ"]] as const;return <div className="search-submenu evaluation-submenu" aria-label="เมนูการประเมิน">{items.map(([href,label])=><Link key={href} href={href} aria-current={pathname===href?"page":undefined}><span className="submenu-dot" aria-hidden="true"/><span className="submenu-label">{label}</span></Link>)}</div>}
 
 export function AppShell({ children, assets }: { children: React.ReactNode; assets: DesignAssetName[] }) {
   const pathname = usePathname();
@@ -91,7 +93,7 @@ export function AppShell({ children, assets }: { children: React.ReactNode; asse
         <button type="button" className="menu-toggle" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? "ขยายเมนูค้างไว้" : "ย่อเมนู"} aria-expanded={!sidebarIsCollapsed} aria-controls="main-navigation">{assets.includes("menu") ? <DesignImage name="menu" assets={assets} /> : <span className="text-control">เมนู</span>}</button>
       </div>
       <div className="sidebar-line"><DesignImage name="sidebarDivider" assets={assets} /></div>
-      <nav id="main-navigation">{visibleNavigation.map(item => <div className="navigation-group" key={item.href}><Link href={item.href} aria-label={item.label} aria-current={pathname === item.href || item.href==="/search" && pathname.startsWith("/patients/") ? "page" : undefined} title={item.label}><span className="nav-icon"><MenuIcon name={item.icon}/></span><span className="nav-label">{item.label}</span></Link>{item.href==="/search" && <Suspense fallback={null}><SearchSubmenu/></Suspense>}</div>)}{profile?.role==="admin"&&<div className="navigation-group"><Link href="/admin/accounts" aria-label="จัดการคำขอบัญชี" aria-current={pathname.startsWith("/admin")?"page":undefined} title="จัดการคำขอบัญชี"><span className="nav-icon"><MenuIcon name="settings"/></span><span className="nav-label">จัดการคำขอบัญชี</span></Link></div>}</nav>
+      <nav id="main-navigation">{visibleNavigation.map(item => <div className="navigation-group" key={item.href}><Link href={item.href==="/evaluation"?"/evaluation/system":item.href} aria-label={item.label} aria-current={pathname === item.href || item.href==="/search" && pathname.startsWith("/patients/") || item.href==="/evaluation"&&pathname.startsWith("/evaluation/") ? "page" : undefined} title={item.label}><span className="nav-icon"><MenuIcon name={item.icon}/></span><span className="nav-label">{item.label}</span></Link>{item.href==="/search"&&<Suspense fallback={null}><SearchSubmenu/></Suspense>}{item.href==="/evaluation"&&pathname.startsWith("/evaluation/")&&<div id="evaluation-submenu"><EvaluationSubmenu/></div>}</div>)}{profile?.role==="admin"&&<div className="navigation-group"><Link href="/admin/accounts" aria-label="จัดการคำขอบัญชี" aria-current={pathname.startsWith("/admin")?"page":undefined} title="จัดการคำขอบัญชี"><span className="nav-icon"><MenuIcon name="settings"/></span><span className="nav-label">จัดการคำขอบัญชี</span></Link></div>}</nav>
       <Link className="settings-link" href="/settings" aria-current={pathname === "/settings" ? "page" : undefined}><span className="nav-icon"><MenuIcon name="settings"/></span><span className="nav-label">การตั้งค่า</span></Link>
     </aside>
     <header className="topbar"><Link className="mobile-home" href="/dashboard">KU-MED</Link><div className="topbar-right"><span className="account-role">{roleLabel}</span>
