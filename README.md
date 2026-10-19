@@ -157,6 +157,15 @@ CITIZEN_CARD_READER_TOKEN=เปลี่ยนเป็น-token-ที่ค�
 
 Local API ควรรับ `POST` ที่มี `{ "operation": "read_identity", "includePhoto": false }` และส่ง JSON ที่มี `citizenId`, `title`, `firstName`, `lastName`, `birthDate`, `gender` และ `homeAddress` ระบบเรียก API นี้จากฝั่งเซิร์ฟเวอร์เท่านั้น กำหนด timeout, ปิด cache, จำกัดความถี่, ไม่บันทึกข้อมูลดิบ และตรวจผู้ป่วยซ้ำก่อนเติมข้อมูลลงแบบฟอร์ม การนำไปใช้จริงต้องติดตั้งระบบยืนยันตัวตนฝั่งเซิร์ฟเวอร์ จำกัดสิทธิ์ตามบทบาท ใช้ HTTPS และจำกัด Local API ให้รับคำขอจากเครื่องหรือเครือข่ายที่กำหนด
 
+สำหรับ Zoweetek ZW-12026-3 ให้เปิด PowerShell แบบ Run as administrator แล้วเริ่มโปรแกรมตัวกลางที่รวมมากับโปรเจกต์:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\Start-CardReader.ps1
+```
+
+เปิดหน้าต่างนี้ค้างไว้ระหว่างใช้งาน หากขึ้นข้อผิดพลาด `No smart card reader was found` ให้ตรวจ Driver และบริการ `SCardSvr` หากขึ้น `Connect to card failed` ให้เสียบบัตรโดยให้ชิปสัมผัสกับหัวอ่านแล้วลองใหม่
+
 Compose สร้าง `DATABASE_URL` ของ containers โดยใช้ hostname `db` หากเปลี่ยนค่าฐานข้อมูลให้ปรับ `DATABASE_URL` ใน `.env` สำหรับการพัฒนาในเครื่องด้วย ใช้รหัสผ่านที่ปลอดภัยต่อ URL หรือปรับ URL ให้ percent-encode อย่างถูกต้อง
 
 บริการผูกพอร์ตกับ `127.0.0.1` สำหรับการพัฒนาในเครื่อง แอปยังไม่มีระบบยืนยันตัวตนหรือฟังก์ชันธุรกิจ จึงยังไม่ใช่ระบบพร้อมใช้งานจริง
