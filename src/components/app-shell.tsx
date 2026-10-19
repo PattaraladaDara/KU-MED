@@ -46,7 +46,8 @@ function EvaluationSubmenu(){const pathname=usePathname();const items=[["/evalua
 export function AppShell({ children, assets }: { children: React.ReactNode; assets: DesignAssetName[] }) {
   const pathname = usePathname();
   const router = useRouter();
-  function logout() {
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     endDemoSession();
     router.replace("/login");
   }

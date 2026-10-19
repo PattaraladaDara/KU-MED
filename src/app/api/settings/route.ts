@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { isUniqueError, text } from "@/lib/api-validation";
+import { getAuthSession, requirePermission } from "@/lib/auth-session";
 
 export const runtime = "nodejs";
 
@@ -9,8 +10,10 @@ const label = (role:string) => ({admin:"ผู้ดูแลระบบหล�
 const canEditContact = (account:{role:string;authProvider:string}|null) => account?.role === "doctor" && account.authProvider === "local";
 
 export async function GET(request:NextRequest) {
+  const auth = requirePermission(request, ["settings:own", "settings:manage"]);
+  if (auth.response) return auth.response;
   try {
-    const userKey = text(request.nextUrl.searchParams.get("userKey")) || fallbackAdmin;
+    const userKey = auth.session!.username;
     const db = getDb();
     const account = userKey === fallbackAdmin ? null : await db.staffAccount.findUnique({where:{username:userKey}});
     const role = account?.role || "admin";
@@ -32,9 +35,12 @@ export async function GET(request:NextRequest) {
 }
 
 export async function PUT(request:NextRequest) {
+  const auth = requirePermission(request, ["settings:own", "settings:manage"]);
+  if (auth.response) return auth.response;
   try {
     const body = await request.json() as Record<string,unknown>;
-    const userKey = text(body.userKey) || fallbackAdmin;
+    const session = getAuthSession(request)!;
+    const userKey = session.username;
     const db = getDb();
     const account = userKey === fallbackAdmin ? null : await db.staffAccount.findUnique({where:{username:userKey}});
     const stored = await db.userSettings.findUnique({where:{userKey}});

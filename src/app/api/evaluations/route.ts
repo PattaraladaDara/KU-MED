@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { optionalText, score, text } from "@/lib/api-validation";
 import { commonCriteria, doctorCriteria, staffCriteria } from "@/lib/evaluation-criteria";
 import { parseBangkokDate } from "@/lib/thai-date";
+import { getAuthSession } from "@/lib/auth-session";
 
 export const runtime = "nodejs";
 
@@ -16,15 +17,17 @@ function average(values: Record<string, number>) { return Math.round(Object.valu
 
 export async function POST(request: NextRequest) {
   try {
+    const session = getAuthSession(request);
+    if (!session) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบใหม่" }, { status: 401 });
     const body = await request.json() as Record<string, unknown>;
     const assessedRole = text(body.assessedRole), assessmentType = text(body.assessmentType);
     if (!new Set(["doctor", "staff"]).has(assessedRole) || !new Set(["self", "peer", "supervisor"]).has(assessmentType))
       return NextResponse.json({ error: "ประเภทการประเมินหรือบทบาทไม่ถูกต้อง" }, { status: 400 });
     const commonScores = readScores(body.commonScores, commonCriteria), roleScores = readScores(body.roleScores, assessedRole === "doctor" ? doctorCriteria : staffCriteria);
-    const assessedName = text(body.assessedName), assessedUserKey = text(body.assessedUserKey), evaluatorKey = text(body.evaluatorKey), evaluationRound = text(body.evaluationRound);
+    const assessedName = text(body.assessedName), assessedUserKey = text(body.assessedUserKey), evaluatorKey = session.username, evaluationRound = text(body.evaluationRound);
     const developmentGoals = optionalText(body.developmentGoals), actionPlan = optionalText(body.actionPlan);
     if (!commonScores || !roleScores) return NextResponse.json({ error: "กรุณาให้คะแนนทุกหัวข้อระหว่าง 1–5" }, { status: 400 });
-    if (!assessedName || !assessedUserKey || !evaluatorKey || !evaluationRound || !developmentGoals || !actionPlan)
+    if (!assessedName || !assessedUserKey || !evaluationRound || !developmentGoals || !actionPlan)
       return NextResponse.json({ error: "กรุณากรอกข้อมูลผู้รับการประเมิน เป้าหมาย และแผนพัฒนาให้ครบ" }, { status: 400 });
     const reviewDateText = text(body.reviewDate), reviewDate = reviewDateText ? parseBangkokDate(reviewDateText) : null;
     if (reviewDate && Number.isNaN(reviewDate.getTime())) return NextResponse.json({ error: "วันที่ติดตามผลไม่ถูกต้อง" }, { status: 400 });

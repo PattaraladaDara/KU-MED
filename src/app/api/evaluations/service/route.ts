@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { text } from "@/lib/api-validation";
+import { getAuthSession } from "@/lib/auth-session";
 
 export const runtime = "nodejs";
 const connectionId = "service-evaluation";
@@ -72,7 +73,7 @@ async function discover(formUrl: string, sheetUrl: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    const userKey = text(request.nextUrl.searchParams.get("userKey"));
+    const userKey = getAuthSession(request)?.username || "";
     const account = await getDb().staffAccount.findUnique({ where: { username: userKey }, select: { role: true } });
     const role = account?.role || "staff", unit = unitByRole[role];
     const where = { assessmentType: "service", ...(role !== "admin" && role !== "executive" && unit ? { serviceUnit: unit } : {}) };

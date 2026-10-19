@@ -14,6 +14,7 @@ FROM dependencies AS migration
 COPY prisma ./prisma
 COPY prisma.config.ts ./
 COPY scripts/bootstrap-admin.mjs ./scripts/bootstrap-admin.mjs
+COPY scripts/bootstrap-test-roles.mjs ./scripts/bootstrap-test-roles.mjs
 CMD ["sh", "-c", "npm run db:deploy && npm run admin:bootstrap"]
 
 FROM dependencies AS builder

@@ -6,6 +6,7 @@ import { parseBangkokDate, parseBangkokDateTime, THAI_TIME_ZONE } from "@/lib/th
 import { ICD10_ENTRIES } from "@/lib/icd10";
 import { addBusinessDays, isWeekday } from "@/lib/business-date";
 import { APPOINTMENT_REASONS, APPOINTMENT_ROOMS, isAppointmentTime } from "@/lib/appointment-options";
+import { requirePermission } from "@/lib/auth-session";
 
 export const runtime = "nodejs";
 
@@ -23,8 +24,13 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id:string }> }) {
+  const body = await request.clone().json().catch(() => ({})) as Record<string, unknown>;
+  const kind = text(body.kind);
+  const permission = kind === "treatment" ? "clinical:write" : kind === "appointment" ? "appointments:manage" : kind === "payment" ? "payments:manage" : "patients:update";
+  const auth = requirePermission(request, permission);
+  if (auth.response) return auth.response;
   try {
-    const { id } = await params; const body = await request.json() as Record<string,unknown>; const kind=text(body.kind);
+    const { id } = await params;
     const patient=await getDb().patient.findUnique({where:{id},select:{id:true,coverage:true}});
     if (!patient) return NextResponse.json({error:"ไม่พบข้อมูลผู้ใช้บริการ"},{status:404});
     if (kind==="treatment") {
@@ -82,8 +88,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id:string }> }) {
+  const body = await request.clone().json().catch(() => ({})) as Record<string, unknown>;
+  const kind = text(body.kind);
+  const permission = kind === "appointment" ? "appointments:manage" : kind === "patient" ? "patients:update" : "clinical:write";
+  const auth = requirePermission(request, permission);
+  if (auth.response) return auth.response;
   try {
-    const {id}=await params;const body=await request.json() as Record<string,unknown>;
+    const {id}=await params;
     if(text(body.kind)==="patient"){
       const required=["citizenId","studentId","status","title","firstName","lastName","birthDate","gender","faculty","major","studyYear","phone","email","coverage","coverageStatus"];
       if(required.some(key=>!text(body[key])))return NextResponse.json({error:"กรุณากรอกข้อมูลที่จำเป็นให้ครบ"},{status:400});
