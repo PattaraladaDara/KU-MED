@@ -1,5 +1,6 @@
 FROM node:24-bookworm-slim AS base
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV TZ=Asia/Bangkok
 

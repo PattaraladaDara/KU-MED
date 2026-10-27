@@ -2,11 +2,11 @@ export type SystemRole="admin"|"doctor"|"staff"|"nurse"|"pharmacist"|"finance"|"
 
 export const rolePermissions:Record<SystemRole,readonly string[]>={
   admin:["dashboard:view","patients:view","intake:view","clinical:view","appointments:view","payments:view","reports:view","reports:export","evaluations:submit","evaluations:view","evaluations:manage","accounts:manage","settings:manage"],
-  doctor:["evaluations:submit","evaluations:view","dashboard:view","patients:view","clinical:view","clinical:write","appointments:view","appointments:manage","settings:own"],
+  doctor:["evaluations:submit","evaluations:view","dashboard:view","patients:view","clinical:view","clinical:write","medications:catalog:use","appointments:view","appointments:manage","documents:print","certificates:issue","settings:own"],
   staff:["evaluations:view","dashboard:view","patients:view","patients:register","patients:update","appointments:view","appointments:manage","documents:print","evaluations:submit","settings:own"],
-  nurse:["evaluations:view","dashboard:view","patients:view","intake:view","intake:write","clinical:view","appointments:view","appointments:manage","evaluations:submit","settings:own"],
-  pharmacist:["evaluations:submit","evaluations:view","dashboard:view","patients:view","clinical:view","medications:view","medications:manage","settings:own"],
-  finance:["evaluations:submit","evaluations:view","dashboard:view","patients:view","payments:view","payments:manage","reports:view","reports:export","finance:manage","settings:own"],
+  nurse:["evaluations:view","dashboard:view","patients:view","intake:view","intake:write","clinical:view","clinical:write","medications:catalog:use","appointments:view","appointments:manage","medications:view","medications:manage","payments:view","payments:manage","service-catalog:use","documents:print","evaluations:submit","settings:own"],
+  pharmacist:["evaluations:submit","evaluations:view","dashboard:view","patients:view","clinical:view","medications:view","medications:manage","medications:catalog:use","medications:catalog:manage","settings:own"],
+  finance:["evaluations:submit","evaluations:view","dashboard:view","patients:view","payments:view","payments:manage","reports:view","reports:export","finance:manage","service-catalog:use","service-catalog:manage","settings:own"],
   executive:["evaluations:submit","evaluations:view","dashboard:view","reports:view","reports:export","settings:own"],
 };
 

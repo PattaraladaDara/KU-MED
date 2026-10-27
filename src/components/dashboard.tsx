@@ -26,8 +26,7 @@ const day = (value: string) => new Intl.DateTimeFormat("th-TH", { weekday: "shor
 const statusText: Record<QueueStatus, string> = { waiting: "รอตรวจ", in_progress: "กำลังตรวจ", completed: "ตรวจเสร็จแล้ว", no_show: "ขาดนัดหมาย" };
 
 export function Dashboard() {
-  const [profile]=useState(()=>getDemoSessionProfile());const role=profile?.role;
-  const isRecordsOfficer=role==="staff",isExecutive=role==="executive";
+  const [profile]=useState(()=>getDemoSessionProfile());
   const [data, setData] = useState<DashboardData | null>(null), [loading, setLoading] = useState(true), [error, setError] = useState(""), [reload, setReload] = useState(0);
   useEffect(() => { const controller = new AbortController(); fetch(`/api/dashboard?userKey=${encodeURIComponent(profile?.username||"")}`, { signal: controller.signal, cache: "no-store" }).then(async response => { const result = await response.json(); if (!response.ok) throw new Error(result.error || "โหลดข้อมูลไม่สำเร็จ"); setData(result); }).catch(reason => { if (reason.name !== "AbortError") setError(reason instanceof Error ? reason.message : "โหลดข้อมูลไม่สำเร็จ"); }).finally(() => { if (!controller.signal.aborted) setLoading(false); }); return () => controller.abort(); }, [reload,profile?.username]);
   const maxTrend = Math.max(1, ...(data?.trend.map(item => item.count) ?? []));
@@ -40,29 +39,29 @@ export function Dashboard() {
     { label: "ตรวจเสร็จแล้ว", value: data.summary.completed, note: "เสร็จสิ้นการให้บริการ", tone: "teal", icon: "check" as const },
     { label: "ขาดนัดหมาย", value: data.queue.filter(item=>item.status==="no_show").length, note: "ควรติดตามหรือนัดหมายใหม่", tone: "red", icon: "alert" as const },
   ] : [];
-  const cards=isRecordsOfficer?allCards.filter(card=>card.icon==="userPlus"||card.icon==="calendar"):allCards;
+  const cards=allCards;
 
   return <div className="operations-dashboard">
-    <header className="operations-heading"><div><h1>{isExecutive?"แดชบอร์ดผู้บริหารสถานพยาบาล":"แดชบอร์ดสรุปผลการให้บริการ"}</h1><p>{isExecutive?"ข้อมูลสรุปเพื่อการติดตามผลการดำเนินงานแบบอ่านอย่างเดียว":"สถานพยาบาล มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตกำแพงแสน"}</p></div><div className="dashboard-filter-controls"><span className="dashboard-period">{new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE, { dateStyle: "medium", timeZone: THAI_TIME_ZONE }).format(new Date())}</span><span className="dashboard-period">ทุกแผนกบริการ (All Units)</span><button type="button" aria-label="อัปเดตข้อมูล" title="อัปเดตข้อมูล" onClick={() => { setLoading(true); setError(""); setReload(value => value + 1); }} disabled={loading}><span aria-hidden="true">↻</span><span className="dashboard-refresh-label">{loading ? "กำลังอัปเดต" : "อัปเดตข้อมูล"}</span></button></div></header>
+    <header className="operations-heading"><div><h1>แดชบอร์ดสรุปผลการให้บริการ</h1><p>สถานพยาบาล มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตกำแพงแสน</p></div><div className="dashboard-filter-controls"><span className="dashboard-period">{new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE, { dateStyle: "medium", timeZone: THAI_TIME_ZONE }).format(new Date())}</span><span className="dashboard-period">ทุกแผนกบริการ (All Units)</span><button type="button" aria-label="อัปเดตข้อมูล" title="อัปเดตข้อมูล" onClick={() => { setLoading(true); setError(""); setReload(value => value + 1); }} disabled={loading}><span aria-hidden="true">↻</span><span className="dashboard-refresh-label">{loading ? "กำลังอัปเดต" : "อัปเดตข้อมูล"}</span></button></div></header>
     {error && <div className="dashboard-error" role="alert"><span>{error}</span><button type="button" onClick={() => { setLoading(true); setError(""); setReload(value => value + 1); }}>ลองใหม่</button></div>}
     {!data && loading ? <DashboardSkeleton /> : data && <>
       <section className="summary-cards" aria-label="สรุปประจำวัน">{cards.map(card => <article className={`summary-card ${card.tone}`} key={card.label}><div><span>{card.label}</span><strong>{number.format(card.value)} <small>คน</small></strong><p>{card.note}</p></div><i aria-hidden="true"><DashboardIcon name={card.icon}/></i></article>)}</section>
-      {isExecutive&&<ExecutiveOverview data={data}/>}
-      <EvaluationOverview data={data}/>
-      {!isRecordsOfficer&&<ServiceOverview data={data} />}
+      <ExecutiveOverview data={data}/>
+      <ServiceOverview data={data} />
       <div className="dashboard-primary-grid">
-        {!isExecutive&&<section className="dashboard-card queue-card"><CardHeader icon="calendar" title={isRecordsOfficer?"รายการนัดหมายวันนี้":"คิวและนัดหมายวันนี้"} subtitle={`${data.queue.length} รายการจากฐานข้อมูล`} action={<Link href="/search">ค้นหาผู้ป่วย</Link>} />
+        <section className="dashboard-card queue-card"><CardHeader icon="calendar" title="คิวและนัดหมายวันนี้" subtitle={`${data.queue.length} รายการจากฐานข้อมูล`} action={<Link href="/search">ค้นหาผู้ป่วย</Link>} />
           {data.queue.length ? <div className="queue-table-wrap"><table><thead><tr><th>เวลา</th><th>ผู้ป่วย</th><th>ห้องตรวจ</th><th>รายการนัด</th><th>สถานะ</th><th/></tr></thead><tbody>{data.queue.map(item => <tr key={item.id}><td className="queue-time">{time(item.time)} น.</td><td><strong>{item.patientName}</strong><small>{item.studentId}</small></td><td>{item.department}</td><td><span>{item.reason}</span><small>{item.clinician || "ยังไม่ระบุแพทย์"}</small></td><td><span className={`queue-status ${item.status}`}>{statusText[item.status]}</span></td><td><Link className="open-patient" href={`/patients/${item.patientId}`} aria-label={`เปิดข้อมูล ${item.patientName}`}>›</Link></td></tr>)}</tbody></table></div> : <EmptyState text="วันนี้ยังไม่มีรายการนัดหมาย" />}
-        </section>}
-        {!isRecordsOfficer&&<section className="dashboard-card room-card"><CardHeader icon="rooms" title="สถานะห้องตรวจ" subtitle="จำนวนผู้ป่วยแยกตามห้อง" />
+        </section>
+        <section className="dashboard-card room-card"><CardHeader icon="rooms" title="สถานะห้องตรวจ" subtitle="จำนวนผู้ป่วยแยกตามห้อง" />
           <div className="room-list">{(activeRooms.length ? activeRooms : data.rooms).map(room => <article key={room.name}><div><span className={room.waiting ? "room-live" : "room-idle"}/><strong>{room.name}</strong></div><dl><div><dt>รับบริการ</dt><dd>{room.visits}</dd></div><div><dt>กำลังตรวจ</dt><dd>{room.inProgress}</dd></div><div><dt>รอตรวจ</dt><dd>{room.waiting}</dd></div></dl></article>)}</div>
-        </section>}
+        </section>
       </div>
       <div className="dashboard-secondary-grid">
-        {!isRecordsOfficer&&<section className="dashboard-card trend-card"><CardHeader icon="chart" title="จำนวนผู้รับบริการย้อนหลัง 7 วัน" subtitle="คำนวณจากวันที่เข้ารับการรักษา" action={<Link href="/reports">ดูรายงาน</Link>} /><div className="trend-chart">{data.trend.map(item => <div className="trend-column" key={item.date}><span className="trend-value">{item.count}</span><div className="trend-track"><i style={{ height: `${Math.max(item.count ? 8 : 2, item.count / maxTrend * 100)}%` }}/></div><small>{day(item.date)}</small></div>)}</div></section>}
-        {!isRecordsOfficer&&<section className="dashboard-card finance-card"><CardHeader icon="finance" title="การเงินประจำวัน" subtitle="เฉพาะรายการที่บันทึกวันนี้" action={<Link href="/reports">รายละเอียด</Link>} /><div className="finance-total"><span>ยอดชำระแล้วทั้งหมด</span><strong>฿{money(data.finance.totalSatang)}</strong></div><dl><div><dt>เงินสด</dt><dd>฿{money(data.finance.cashSatang)}</dd></div><div><dt>โอนเงิน</dt><dd>฿{money(data.finance.transferSatang)}</dd></div><div><dt>ใช้สิทธิการรักษา</dt><dd>{number.format(data.finance.coverageCount)} รายการ</dd></div><div className={data.finance.pendingTransfers ? "attention" : ""}><dt>รายการโอนรอยืนยัน</dt><dd>{number.format(data.finance.pendingTransfers)} รายการ</dd></div></dl></section>}
-        <section className="dashboard-card action-card"><CardHeader icon="shortcut" title="ทางลัด" subtitle={isExecutive?"เปิดรายงานสำหรับผู้บริหาร":"เปิดงานที่ใช้เป็นประจำ"} /><div className="quick-actions">{!isExecutive&&<><Link href="/registration"><b><DashboardIcon name="userPlus"/></b><span>ลงทะเบียนผู้ป่วยใหม่</span></Link><Link href="/search"><b><DashboardIcon name="search"/></b><span>ค้นหารายชื่อ</span></Link></>}{!isRecordsOfficer&&<Link href="/reports"><b><DashboardIcon name="report"/></b><span>รายงาน</span></Link>}</div></section>
+        <section className="dashboard-card trend-card"><CardHeader icon="chart" title="จำนวนผู้รับบริการย้อนหลัง 7 วัน" subtitle="คำนวณจากวันที่เข้ารับการรักษา" action={<Link href="/reports">ดูรายงาน</Link>} /><div className="trend-chart">{data.trend.map(item => <div className="trend-column" key={item.date}><span className="trend-value">{item.count}</span><div className="trend-track"><i style={{ height: `${Math.max(item.count ? 8 : 2, item.count / maxTrend * 100)}%` }}/></div><small>{day(item.date)}</small></div>)}</div></section>
+        <section className="dashboard-card finance-card"><CardHeader icon="finance" title="การเงินประจำวัน" subtitle="เฉพาะรายการที่บันทึกวันนี้" action={<Link href="/reports">รายละเอียด</Link>} /><div className="finance-total"><span>ยอดชำระแล้วทั้งหมด</span><strong>฿{money(data.finance.totalSatang)}</strong></div><dl><div><dt>เงินสด</dt><dd>฿{money(data.finance.cashSatang)}</dd></div><div><dt>โอนเงิน</dt><dd>฿{money(data.finance.transferSatang)}</dd></div><div><dt>ใช้สิทธิการรักษา</dt><dd>{number.format(data.finance.coverageCount)} รายการ</dd></div><div className={data.finance.pendingTransfers ? "attention" : ""}><dt>รายการโอนรอยืนยัน</dt><dd>{number.format(data.finance.pendingTransfers)} รายการ</dd></div></dl></section>
+        <section className="dashboard-card action-card"><CardHeader icon="shortcut" title="ทางลัด" subtitle="เปิดงานที่ใช้เป็นประจำ" /><div className="quick-actions"><Link href="/registration"><b><DashboardIcon name="userPlus"/></b><span>ลงทะเบียนผู้ป่วยใหม่</span></Link><Link href="/search"><b><DashboardIcon name="search"/></b><span>ค้นหารายชื่อ</span></Link><Link href="/reports"><b><DashboardIcon name="report"/></b><span>รายงาน</span></Link></div></section>
       </div>
+      <EvaluationOverview data={data}/>
       <footer className="dashboard-updated">ข้อมูลจากฐานข้อมูล KU-MED · อัปเดตล่าสุด {dateTime(data.updatedAt)} น.</footer>
     </>}
   </div>;

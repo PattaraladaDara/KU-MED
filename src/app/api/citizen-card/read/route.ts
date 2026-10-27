@@ -32,20 +32,16 @@ export async function POST(request:NextRequest){
   if(origin&&host&&new URL(origin).host!==host)return response({error:"ไม่อนุญาตให้เรียกใช้งานเครื่องอ่านบัตรจากเว็บไซต์อื่น"},403);
   if(fetchSite&&!["same-origin","same-site","none"].includes(fetchSite))return response({error:"ไม่อนุญาตให้เรียกใช้งานเครื่องอ่านบัตรจากเว็บไซต์อื่น"},403);
   if(Number(request.headers.get("content-length")||0)>1024)return response({error:"คำขอมีขนาดเกินกว่าที่ระบบกำหนด"},413);
-  const body=await request.json().catch(()=>null) as {requestId?:unknown}|null;
+  const body=await request.json().catch(()=>null) as {requestId?:unknown;cardData?:unknown}|null;
   if(!body||typeof body.requestId!=="string"||!/^[0-9a-f-]{36}$/i.test(body.requestId))return response({error:"คำขออ่านบัตรไม่ถูกต้อง"},400);
-  const mode=(process.env.CITIZEN_CARD_READER_MODE||"disabled").trim().toLowerCase();
+  const mode=(process.env.CITIZEN_CARD_READER_MODE||"local").trim().toLowerCase();
   if(!["mock","local"].includes(mode))return response({error:"ยังไม่ได้เปิดใช้งานระบบเครื่องอ่านบัตรประชาชน"},503);
   try{
     let card:CardData;
     if(mode==="mock")card=mockCard();
     else{
-      const endpoint=process.env.CITIZEN_CARD_READER_URL?.trim();
-      if(!endpoint)return response({error:"ยังไม่ได้กำหนด CITIZEN_CARD_READER_URL"},503);
-      const headers:Record<string,string>={Accept:"application/json","Content-Type":"application/json"};const token=process.env.CITIZEN_CARD_READER_TOKEN?.trim();if(token)headers.Authorization=token.toLowerCase().startsWith("bearer ")?token:`Bearer ${token}`;
-      const upstream=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify({operation:"read_identity",includePhoto:false}),cache:"no-store",signal:AbortSignal.timeout(12_000)});
-      if(!upstream.ok)return response({error:`โปรแกรมอ่านบัตรตอบกลับไม่สำเร็จ (${upstream.status})`},502);
-      card=normalize(await upstream.json());
+      if(!body.cardData)return response({error:"ไม่พบข้อมูลจากโปรแกรมอ่านบัตรในเครื่อง กรุณาเปิดโปรแกรมอ่านบัตรแล้วลองใหม่"},400);
+      card=normalize(body.cardData);
     }
     if(card.citizenId.length!==13||!card.firstName||!card.lastName||!card.birthDate)return response({error:"อ่านบัตรสำเร็จแต่ข้อมูลระบุตัวตนไม่ครบถ้วน กรุณาถอดบัตรและลองใหม่"},502);
     const existing=await getDb().patient.findUnique({where:{citizenId:card.citizenId},select:{id:true,title:true,firstName:true,lastName:true}});

@@ -73,10 +73,9 @@ npm start
 - `NEXT_PUBLIC_PROMPTPAY_ID`: เบอร์โทร 10 หลัก หรือเลขพร้อมเพย์/ผู้เสียภาษี 13 หลักของสถานพยาบาล ใช้สร้าง QR ที่ล็อกยอดเงิน ต้องกำหนดก่อน `docker compose up --build`
 - `STUDENT_LOOKUP_API_URL`: PATH ฝั่งเซิร์ฟเวอร์สำหรับค้นหาข้อมูลนิสิต ใส่ `{studentId}` ในตำแหน่งรหัส เช่น `https://student-api.example.ac.th/students/{studentId}`
 - `STUDENT_LOOKUP_API_TOKEN`: Bearer token ของ API (เว้นว่างได้ถ้าไม่ใช้)
-- `STUDENT_LOOKUP_MOCK`: ตั้งเป็น `true` เพื่อสาธิตการดึงข้อมูลโดยไม่เรียก API หรือใช้ข้อมูลจริง
-- `CITIZEN_CARD_READER_MODE`: ใช้ `mock` สำหรับการนำเสนอ, `local` สำหรับเครื่องอ่านจริง หรือ `disabled` เพื่อปิดการใช้งาน
-- `CITIZEN_CARD_READER_URL`: URL ฝั่งเซิร์ฟเวอร์ของโปรแกรมเชื่อมต่อเครื่องอ่านบัตร เช่น `http://host.docker.internal:47831/read-card` เมื่อเว็บทำงานใน Docker บน Windows
-- `CITIZEN_CARD_READER_TOKEN`: Token สำหรับยืนยันการเชื่อมต่อระหว่าง KU-MED กับโปรแกรมอ่านบัตร เก็บเฉพาะใน `.env`
+- `CITIZEN_CARD_READER_MODE`: ใช้ `local` เพื่ออ่านบัตรจริงจากคอมพิวเตอร์ที่เสียบเครื่องอ่าน หรือ `mock` สำหรับข้อมูลบัตรจำลอง
+- `CITIZEN_CARD_READER_ALLOWED_ORIGINS`: allowlist origin ของเว็บที่เรียก local bridge ใช้บนคอมพิวเตอร์หน้าเคาน์เตอร์เท่านั้น
+- `STUDENT_LOOKUP_MOCK`: ตั้งเป็น `true` เพื่อใช้ข้อมูลนิสิตจำลองระหว่างรออนุญาตเชื่อม API
 - `KU_ALLLOGIN_URL`: URL ฝั่งเซิร์ฟเวอร์สำหรับเริ่ม KU All-Login เมื่อได้รับจากผู้ดูแลระบบ ให้ใส่ใน `.env` โดยไม่ใช้ชื่อขึ้นต้นด้วย `NEXT_PUBLIC_`
 
 ## ระบบบัญชีผู้ปฏิบัติงาน
@@ -155,30 +154,16 @@ STUDENT_LOOKUP_API_TOKEN=
 
 ## เครื่องอ่านบัตรประชาชน
 
-สำหรับการนำเสนอให้ตั้งค่าใน `.env` ดังนี้ ระบบจะสร้างข้อมูลบุคคลจำลอง ไม่เรียกข้อมูลจริงและไม่ส่งรูปถ่าย:
+เครื่องอ่าน Zoweetex ZW-12026-3 ต้องเสียบ USB กับคอมพิวเตอร์ที่เปิดหน้า KU-MED อยู่ เพราะ USB บนเครื่องผู้ใช้ไม่สามารถถูกอ่านจาก VPS ได้ ให้ติดตั้งไดรเวอร์ของเครื่องอ่านและตรวจว่า Windows มองเห็นอุปกรณ์ จากนั้นเปิด PowerShell บนคอมพิวเตอร์เครื่องนั้นที่โฟลเดอร์โปรเจกต์:
 
-```env
-CITIZEN_CARD_READER_MODE=mock
-```
+    Set-ExecutionPolicy -Scope Process Bypass
+    .\Start-CardReader.ps1
 
-เมื่อติดตั้งเครื่องอ่านจริง ให้มีโปรแกรมเชื่อมต่อบน Windows ที่อ่านบัตรผ่านไดรเวอร์ของผู้ผลิตหรือ PC/SC และเปิด Local API สำหรับ KU-MED จากนั้นเปลี่ยนเฉพาะค่าใน `.env`:
+เปิดหน้าต่าง PowerShell ค้างไว้ระหว่างใช้งาน Local bridge จะรับการเชื่อมต่อเฉพาะจาก loopback และ origin ที่กำหนดใน CITIZEN_CARD_READER_ALLOWED_ORIGINS โดยค่าเริ่มต้นอนุญาต https://ku-med-test.tech และ localhost สำหรับการพัฒนา ไม่ต้องเผยแพร่ token ในเว็บหรือส่งข้อมูลบัตรไปให้ VPS เพื่ออ่าน USB
 
-```env
-CITIZEN_CARD_READER_MODE=local
-CITIZEN_CARD_READER_URL=http://host.docker.internal:47831/read-card
-CITIZEN_CARD_READER_TOKEN=เปลี่ยนเป็น-token-ที่คาดเดายาก
-```
+ตั้งค่าใน .env ของระบบให้ CITIZEN_CARD_READER_MODE=local ส่วนการค้นข้อมูลนิสิตคง STUDENT_LOOKUP_MOCK=true ไว้ ระบบอ่านข้อมูลจากบัตรจริงเพื่อกรอกแบบฟอร์ม แต่ข้อมูลนิสิตยังเป็นข้อมูลจำลอง ทั้งสองส่วนไม่ใช่แหล่งข้อมูลเดียวกัน
 
-Local API ควรรับ `POST` ที่มี `{ "operation": "read_identity", "includePhoto": false }` และส่ง JSON ที่มี `citizenId`, `title`, `firstName`, `lastName`, `birthDate`, `gender` และ `homeAddress` ระบบเรียก API นี้จากฝั่งเซิร์ฟเวอร์เท่านั้น กำหนด timeout, ปิด cache, จำกัดความถี่, ไม่บันทึกข้อมูลดิบ และตรวจผู้ป่วยซ้ำก่อนเติมข้อมูลลงแบบฟอร์ม การนำไปใช้จริงต้องติดตั้งระบบยืนยันตัวตนฝั่งเซิร์ฟเวอร์ จำกัดสิทธิ์ตามบทบาท ใช้ HTTPS และจำกัด Local API ให้รับคำขอจากเครื่องหรือเครือข่ายที่กำหนด
-
-สำหรับ Zoweetek ZW-12026-3 ให้เปิด PowerShell แบบ Run as administrator แล้วเริ่มโปรแกรมตัวกลางที่รวมมากับโปรเจกต์:
-
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\Start-CardReader.ps1
-```
-
-เปิดหน้าต่างนี้ค้างไว้ระหว่างใช้งาน หากขึ้นข้อผิดพลาด `No smart card reader was found` ให้ตรวจ Driver และบริการ `SCardSvr` หากขึ้น `Connect to card failed` ให้เสียบบัตรโดยให้ชิปสัมผัสกับหัวอ่านแล้วลองใหม่
+เมื่อกดอ่านบัตร ระบบจะเติมข้อมูลลงแบบฟอร์มให้ตรวจทานก่อนบันทึก ไม่สร้างเวชระเบียนอัตโนมัติ หากขึ้นว่าเชื่อมต่อโปรแกรมอ่านบัตรไม่ได้ ให้เปิด Start-CardReader.ps1 บนเครื่องที่เสียบ USB; หากไม่พบ reader ให้ตรวจไดรเวอร์และบริการ SCardSvr; หากพบ reader แต่ไม่มีบัตร ให้ใส่บัตรและลองอีกครั้ง
 
 Compose สร้าง `DATABASE_URL` ของ containers โดยใช้ hostname `db` หากเปลี่ยนค่าฐานข้อมูลให้ปรับ `DATABASE_URL` ใน `.env` สำหรับการพัฒนาในเครื่องด้วย ใช้รหัสผ่านที่ปลอดภัยต่อ URL หรือปรับ URL ให้ percent-encode อย่างถูกต้อง
 

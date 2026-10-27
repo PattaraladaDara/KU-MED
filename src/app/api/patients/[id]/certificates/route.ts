@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { requirePermission } from "@/lib/auth-session";
 import { isWeekday } from "@/lib/business-date";
 import { parseBangkokDate, THAI_TIME_ZONE } from "@/lib/thai-date";
 
@@ -38,13 +39,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { session, response } = requirePermission(request, "certificates:issue");
+  if (response) return response;
+  if (session!.role !== "doctor") return NextResponse.json({ error: "เฉพาะแพทย์เท่านั้นที่ออกใบรับรองแพทย์ได้" }, { status: 403 });
   try {
     const { id } = await params;
     const body = await request.json() as Record<string, unknown>;
     const treatmentRecordId = String(body.treatmentRecordId || "").trim();
     const restEndDate = String(body.restEndDate || "").trim();
     const issuerUsername = String(body.issuerUsername || "").trim();
-    if (!treatmentRecordId || !/^\d{4}-\d{2}-\d{2}$/.test(restEndDate) || !issuerUsername) {
+    if (!treatmentRecordId || !/^\d{4}-\d{2}-\d{2}$/.test(restEndDate) || !issuerUsername || issuerUsername !== session!.username) {
       return NextResponse.json({ error: "ข้อมูลสำหรับออกใบรับรองแพทย์ไม่ครบถ้วน" }, { status: 400 });
     }
 

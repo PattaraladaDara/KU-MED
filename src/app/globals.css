@@ -1,4 +1,29 @@
-:root { color-scheme: light; --sidebar:#1a312c; --topbar:#428475; --canvas:#e7e7e7; --paper:#fffbf4; --text:#0f172a; --muted:#64748b; --green:#059669; --sidebar-width:318px; }
+:root {
+  color-scheme:light;
+  --brand-green-950:#153c32;
+  --brand-green-900:#18483a;
+  --brand-green-800:#236451;
+  --brand-green-700:#267862;
+  --brand-green-600:#3d8a77;
+  --brand-green-500:#62b095;
+  --brand-green-200:#bfe5d6;
+  --brand-green-100:#e3f6ee;
+  --brand-green-050:#f4fbf8;
+  --brand-cream:#fffdf8;
+  --brand-cream-deep:#f8f5ee;
+  --brand-white:#ffffff;
+  --brand-ink:#153f34;
+  --brand-muted:#617b72;
+  --brand-border:#d9e9e2;
+  --sidebar:var(--brand-green-950);
+  --topbar:var(--brand-green-600);
+  --canvas:var(--brand-cream-deep);
+  --paper:var(--brand-cream);
+  --text:var(--brand-ink);
+  --muted:var(--brand-muted);
+  --green:var(--brand-green-600);
+  --sidebar-width:318px;
+}
 * { box-sizing:border-box; }
 .login-page { position:relative; width:1440px; max-width:100%; height:1002px; min-height:100svh; margin-inline:auto; display:grid; grid-template-columns:48.6% minmax(0,1fr); background:#FFFFFF; color:var(--sidebar); font-family:"Sarabun",sans-serif; }
 .login-intro { background:#1d4039; color:#fffbf4; min-height:1002px; position:relative; display:flex; flex-direction:column; justify-content:space-between; padding:176px 48px 36px; overflow:hidden; }
@@ -79,6 +104,19 @@ h2 { font-size:24px; line-height:32px; letter-spacing:-.6px; font-weight:700; }
 @media(max-width:900px) { :root { --sidebar-width:218px; }.avatar { display:none; }.profile-text { margin-left:0; }.sidebar nav a { font-size:15px; padding:0 12px; gap:8px; }.main-content { padding:18px; }.home-card { padding:12px; }.topbar .language,.topbar .account-role { font-size:16px; }.welcome-panel h1 { font-size:24px; }.welcome-panel > .university { font-size:17px; line-height:1.5; }.hospital-banner { height:210px; }.news-with-image { flex-direction:column; align-items:flex-start; }.news-card { padding:20px; }.introduction { line-height:1.6; } }
 @media(max-width:640px) { .app-shell,.sidebar-collapsed { display:flex; flex-direction:column; height:100svh; overflow:hidden; }.topbar { position:static; order:0; min-height:64px; flex:none; justify-content:space-between; padding:12px 16px; }.mobile-home { display:block; }.account-role,.header-divider { display:none; }.sidebar { position:static; order:1; display:grid; grid-template-columns:1fr 1fr; width:100%; height:auto; flex:none; overflow:visible; }.profile,.sidebar-line { display:none; }.sidebar nav { grid-column:1/-1; display:grid; grid-template-columns:1fr 1fr; padding:6px 8px 0; }.sidebar nav a { height:44px; justify-content:flex-start; padding:0 10px; font-size:13px; line-height:1.35; white-space:normal; }.settings-link { position:static; grid-column:1/-1; width:auto; height:40px; padding:0 18px; font-size:13px; }.settings-link .nav-icon { display:none; }.nav-icon { display:none; }.sidebar-collapsed .nav-label { display:inline; }.main-content { order:2; min-height:0; flex:1; overflow-y:auto; padding:16px 12px; }.home-card { padding:10px; border-radius:16px; }.welcome-panel { padding:16px 12px; border-radius:12px; }.welcome-panel h1 { font-size:23px; line-height:1.5; }.welcome-panel > .university { margin-top:10px; }.introduction { margin-top:24px; }.hospital-banner { height:180px; margin-top:24px; }.hospital-heading { gap:4px; }.location-description { line-height:1.6; }.news-card h3 { font-size:18px; line-height:1.6; }.news-card p { font-size:16px; line-height:1.7; }.site-footer { justify-content:flex-start; line-height:1.8; margin-top:32px; }.module-pending { padding:24px; } }
 @media print { .app-shell { height:auto!important; min-height:0!important; overflow:visible!important; }.main-content { overflow:visible!important; } }
+
+/* Shared KU-MED palette: green, white and cream. */
+@media screen {
+  body,.main-content { background:var(--brand-cream-deep); color:var(--brand-ink); }
+  .sidebar { background:var(--brand-green-950); }
+  .topbar { background:var(--brand-green-600); }
+  .sidebar nav a:hover,.settings-link:hover { background:var(--brand-green-800); }
+  .sidebar nav a[aria-current="page"],.settings-link[aria-current="page"] { background:var(--brand-green-500); color:var(--brand-white); }
+  .home-card,.notifications,.news-card,.module-pending { background:var(--brand-white); border-color:var(--brand-border); }
+  .welcome-panel,.login-card { background:var(--brand-cream); }
+  .notifications { color:var(--brand-ink); border-color:var(--brand-border); }
+  button:focus-visible,a:focus-visible { outline-color:var(--brand-green-500); }
+}
 
 /* Active navigation matches the shared Figma shell. */
 @media screen {
@@ -439,7 +477,7 @@ h2 { font-size:24px; line-height:32px; letter-spacing:-.6px; font-weight:700; }
  .submenu-dot { display:none; }
 }
 
-/* One screen typeface; preserve each component's size, weight and line height. */
+/* One consistent typeface across the complete application. */
 @media screen {
  html body,html body *,html body *::before,html body *::after {
   font-family:"Prompt",sans-serif !important;
@@ -455,3 +493,24 @@ h2 { font-size:24px; line-height:32px; letter-spacing:-.6px; font-weight:700; }
  .sidebar .search-submenu a[aria-current="page"] { background:#84d6b8; color:#173d32; font-weight:700; box-shadow:0 3px 10px #071f3226; }
 }
 @media screen and (max-width:640px) { .sidebar .search-submenu-patient { display:none; } }
+
+/* Final application-shell palette guard. */
+@media screen {
+ body,.main-content { background:var(--brand-cream-deep); color:var(--brand-ink); }
+ .sidebar { background:var(--brand-green-950); }
+ .topbar { background:var(--brand-green-600); }
+ .sidebar nav a:hover,.settings-link:hover { background:var(--brand-green-800); }
+ .sidebar nav a[aria-current="page"],.settings-link[aria-current="page"],.sidebar .search-submenu a[aria-current="page"] { background:var(--brand-green-500); color:var(--brand-white); }
+ .home-card,.notifications,.news-card,.module-pending { background:var(--brand-white); border-color:var(--brand-border); }
+ .welcome-panel,.login-card { background:var(--brand-cream); }
+}
+
+/* Shared motion and surface finish; no application behavior is changed. */
+@media screen {
+ :is(button,a,input,select,textarea) { transition:border-color 180ms ease,background-color 180ms ease,color 180ms ease,box-shadow 180ms ease,transform 180ms ease; }
+ :is(input,select,textarea):focus-visible { outline:3px solid #5b9c8938; outline-offset:1px; }
+ .clinical-card,.dashboard-card,.news-card,.home-card { box-shadow:0 6px 22px #173d320a; }
+}
+@media screen and (prefers-reduced-motion:reduce) {
+ *,*::before,*::after { scroll-behavior:auto!important; transition-duration:.01ms!important; animation-duration:.01ms!important; animation-iteration-count:1!important; }
+}

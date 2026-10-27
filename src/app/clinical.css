@@ -535,6 +535,229 @@
   .patient-profile-page .profile-tabs button,.directory-page .search-control,.directory-page .directory-filter select { transition:none; }
 }
 
+/* Keep compact select fields comfortably sized for their longest labels. */
+@media screen and (min-width:1001px) {
+  .registration-page .registration-identity-grid .field:has(#faculty) { grid-column:span 5; }
+  .registration-page .registration-identity-grid .field:has(#major) { grid-column:span 4; }
+  .registration-page .registration-identity-grid .field:has(#year) { grid-column:span 3; }
+  .directory-page .directory-toolbar {
+    grid-template-columns:minmax(0,1fr) minmax(230px,260px);
+  }
+}
+.registration-page .field:has(#year) select,
+.directory-page .directory-filter select {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.registration-page .field:has(#year) select {
+  padding-right:42px;
+}
+.directory-page .directory-filter select {
+  min-height:56px;
+  padding:12px 44px 12px 16px;
+  font-size:15px;
+  line-height:1.5;
+}
+
+/* Status editor lives above the profile stacking context and stays visually compact. */
+.status-editor-backdrop {
+  z-index:5000;
+  padding:24px;
+  background:rgba(17,35,30,.58);
+  backdrop-filter:blur(5px);
+}
+.status-editor-modal {
+  width:min(680px,100%);
+  max-height:calc(100dvh - 48px);
+  overflow:hidden;
+  border:1px solid #d7e7e0;
+  border-radius:20px;
+  background:#fffdfa;
+  box-shadow:0 28px 80px #102b2366;
+}
+.status-editor-modal>header {
+  position:static;
+  align-items:center;
+  padding:22px 26px;
+  border-bottom:1px solid #e2ece7;
+  background:linear-gradient(115deg,#ffffff 55%,#eef8f3);
+}
+.status-editor-modal>header>div { min-width:0; }
+.status-editor-modal>header h2 {
+  color:#123f33;
+  font-size:20px;
+}
+.status-editor-modal>header p {
+  margin-top:4px;
+  color:#6a7e77;
+  line-height:1.6;
+}
+.status-editor-modal>header button {
+  display:grid;
+  place-items:center;
+  flex:0 0 38px;
+  width:38px;
+  height:38px;
+  padding:0;
+  background:#edf5f1;
+  color:#47685e;
+  font:600 22px/1 Arial,sans-serif;
+}
+.status-editor-modal .record-form {
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:20px;
+  max-height:calc(100dvh - 154px);
+  padding:24px 26px 26px;
+  overflow-y:auto;
+  background:#fffdfa;
+}
+.status-editor-modal .field { grid-column:auto; gap:8px; }
+.status-editor-modal .field.full { grid-column:1/-1; }
+.status-editor-modal .field label {
+  color:#284a40;
+  font-size:14px;
+  font-weight:700;
+}
+.status-editor-modal .field select,
+.status-editor-modal .field textarea {
+  min-height:52px;
+  border-color:#c9ded5;
+  border-radius:11px;
+  background:#ffffff;
+  font-size:15px;
+}
+.status-editor-modal .field textarea {
+  min-height:112px;
+  line-height:1.65;
+}
+.status-editor-modal .record-form-actions {
+  grid-column:1/-1;
+  margin:0;
+}
+.status-editor-modal .form-actions {
+  justify-content:flex-end;
+  padding-top:2px;
+}
+.status-editor-modal .form-actions button { min-width:118px; }
+@media (max-width:640px) {
+  .status-editor-backdrop { align-items:end; padding:12px; }
+  .status-editor-modal { max-height:calc(100dvh - 24px); border-radius:18px; }
+  .status-editor-modal>header { padding:18px; }
+  .status-editor-modal .record-form {
+    grid-template-columns:1fr;
+    gap:16px;
+    max-height:calc(100dvh - 126px);
+    padding:18px;
+  }
+  .status-editor-modal .field,.status-editor-modal .field.full { grid-column:1; }
+  .status-editor-modal .form-actions { flex-direction:column-reverse; }
+  .status-editor-modal .form-actions button { width:100%; }
+}
+
+/* Registration form: one consistent control scale across every field and action. */
+@media screen {
+  .registration-page .registration-identity-grid {
+    align-items:start;
+    gap:22px 24px;
+  }
+  .registration-page .field {
+    gap:8px;
+  }
+  .registration-page .field label {
+    min-height:26px;
+    color:#163d33;
+    font-size:15px;
+    font-weight:700;
+    line-height:1.65;
+  }
+  .registration-page .field :is(input,select) {
+    box-sizing:border-box;
+    height:56px;
+    min-height:56px;
+    padding:12px 16px;
+    border:1px solid #c8d9d2;
+    border-radius:12px;
+    font-size:16px;
+    line-height:1.5;
+  }
+  .registration-page .field textarea {
+    min-height:96px;
+    padding:14px 16px;
+    border:1px solid #c8d9d2;
+    border-radius:12px;
+    font-size:16px;
+    line-height:1.65;
+  }
+  .registration-page .registration-input-action {
+    min-width:0;
+    height:56px;
+    gap:10px;
+  }
+  .registration-page .registration-input-action>.sensitive-input,
+  .registration-page .registration-input-action>input {
+    height:56px;
+  }
+  .registration-page .registration-input-action>button {
+    box-sizing:border-box;
+    min-width:136px;
+    height:56px;
+    min-height:56px;
+    padding:0 16px;
+    border-radius:10px;
+    font-size:13px;
+    line-height:1.4;
+  }
+  .registration-page .sensitive-input {
+    min-width:0;
+    height:56px;
+  }
+  .registration-page .sensitive-input input {
+    height:56px;
+    padding-right:72px;
+  }
+  .registration-page .sensitive-input button {
+    right:7px;
+    min-width:56px;
+    height:38px;
+    border:1px solid #c6d9d1;
+    border-radius:8px;
+    background:#edf6f2;
+    font-size:12px;
+  }
+  .registration-page .registration-status-field select {
+    height:56px;
+    min-height:56px;
+    color:#087158;
+    font-size:16px;
+  }
+  .registration-page .registration-identity-grid .field>small {
+    display:block;
+    min-height:38px;
+    color:#697b75;
+    font-size:11px;
+    line-height:1.65;
+  }
+  .registration-page .smart-card-button {
+    min-height:46px;
+    padding:10px 16px;
+    border-radius:10px;
+    font-size:13px;
+  }
+}
+@media screen and (max-width:640px) {
+  .registration-page .registration-input-action {
+    height:auto;
+  }
+  .registration-page .registration-input-action>button {
+    width:100%;
+    min-width:0;
+  }
+  .registration-page .registration-identity-grid .field>small {
+    min-height:0;
+  }
+}
+
 @media screen {
   .service-evaluation-page .evaluation-intro aside { min-width:0; padding:14px 18px; font-size:14px; line-height:1.8; }
   .service-evaluation-page .evaluation-intro aside strong { margin-bottom:4px; font-size:16px; }
@@ -1221,3 +1444,352 @@
 .supplies-used{display:grid;gap:5px;margin-top:12px;padding:12px 14px;border:1px solid #d5e6de;border-radius:10px;background:#f6faf8}.supplies-used h4{margin:0;color:#31594c;font-size:12px}.supplies-used p{margin:0;color:#3d554d;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}
 .pharmacy-order-list>article{display:grid;gap:4px;padding:10px 0;border-top:1px solid #dfe9e4}.pharmacy-order-list>article p{margin:0;color:#445c52;font-size:13px}.pharmacy-order-list>article small,.pharmacy-order-list>small{color:#08775e;font-weight:700}.medication-order-audit{margin-top:12px;padding:12px 14px;border:1px solid #dce7e2;border-radius:10px;background:#fbfdfc}.medication-order-audit>summary{cursor:pointer;color:#31594c;font-weight:700}.medication-order-audit>article{display:grid;gap:4px;padding:10px 0;border-top:1px solid #e7eeea}.medication-order-audit>article p{margin:0}.medication-order-audit>article small{color:#657970}.medication-correction{display:grid;gap:12px;margin-top:14px;padding:16px;border:1px solid #d3e3dc;border-radius:12px;background:#f8fbf9}.medication-correction>header{margin:0}.medication-correction>header>div{display:grid;gap:4px}.medication-correction>header small{color:#71827b}.medication-correction-row{display:grid;grid-template-columns:minmax(200px,1.4fr) minmax(100px,.45fr) minmax(180px,1fr) minmax(220px,1.2fr) auto;align-items:end;gap:10px;padding:12px;border:1px solid #dce7e2;border-radius:10px;background:white}.medication-correction-row label,.medication-correction-reason{display:grid;gap:5px}.medication-correction-row label>span,.medication-correction-reason>span{color:#3d554d;font-size:12px;font-weight:700}.medication-correction-row select,.medication-correction-row input,.medication-correction-row textarea,.medication-correction-reason textarea{width:100%;min-width:0;min-height:40px;padding:8px 10px;border:1px solid #cfddd7;border-radius:8px;background:#fff;font:inherit}.medication-correction-row textarea,.medication-correction-reason textarea{min-height:72px;resize:vertical}.medication-correction-actions{display:flex;justify-content:flex-end;gap:8px}.medication-success{padding:10px 12px;border:1px solid #9bd7bd;border-radius:9px;background:#edfaf3;color:#08775e}.medication-actions>small{align-self:center;color:#8a6331;font-size:11px}@media(max-width:1000px){.medication-correction-row{grid-template-columns:1fr 140px}.medication-correction-row label:nth-child(n+3){grid-column:1/-1}}@media(max-width:600px){.medication-correction{padding:11px}.medication-correction-row{grid-template-columns:1fr}.medication-correction-row label,.medication-correction-row label:nth-child(n+3){grid-column:auto}.medication-correction-actions{display:grid;grid-template-columns:1fr}.medication-correction-actions button{width:100%}}
 .medication-catalog-guidance{display:grid;gap:5px;min-width:0}.medication-catalog-guidance>span{color:#3d554d;font-size:12px;font-weight:700}.medication-catalog-guidance textarea{width:100%;min-width:0;min-height:82px;padding:9px 10px;border:1px solid #cfddd7;border-radius:8px;background:#fff;font:inherit;resize:vertical}
+
+/* Shared KU-MED palette: structural surfaces stay green, white and cream. */
+@media screen {
+  .clinical-page,.directory-page,.finance-report-workspace { background:var(--brand-cream); color:var(--brand-ink); }
+  .clinical-card,.profile-records,.finance-data-card,.evaluation-dashboard-card,.service-catalog-manager { background:var(--brand-white); border-color:var(--brand-border); }
+  .primary-button { border-color:var(--brand-green-700); background:var(--brand-green-700); }
+  .primary-button:hover { background:var(--brand-green-900); }
+  .secondary-button { border-color:var(--brand-green-200); background:var(--brand-white); color:var(--brand-green-900); }
+  .secondary-button:hover { background:var(--brand-green-050); }
+  .field input,.field select,.field textarea,.search-control,.directory-filter select { border-color:var(--brand-border); color:var(--brand-ink); background:var(--brand-white); }
+  .field input:focus,.field select:focus,.field textarea:focus { border-color:var(--brand-green-600); outline-color:#42847533; }
+  .read-only-notice { border-color:var(--brand-green-200); background:var(--brand-green-050); color:var(--brand-green-800); }
+  .patient-profile-page .profile-hero { background:radial-gradient(ellipse at top right,#7ec6ab33,transparent 65%),linear-gradient(115deg,var(--brand-green-900),var(--brand-green-800)); border-color:var(--brand-green-600); }
+  .patient-profile-page :is(.general-heading,.record-heading) { background:linear-gradient(115deg,var(--brand-white) 45%,var(--brand-cream)); border-color:var(--brand-border); }
+  .patient-profile-page .profile-data-grid>div { background:linear-gradient(135deg,var(--brand-white),var(--brand-cream)); border-color:var(--brand-border); }
+  .appointment-pill,.queue-status.in_progress,.finance-status.status-paid { border-color:var(--brand-green-200); background:var(--brand-green-100); color:var(--brand-green-800); }
+  .summary-icon.blue,.summary-icon.gold,.dashboard-heading-icon,.dashboard-heading-icon.chart,.dashboard-heading-icon.finance { background:var(--brand-green-100); color:var(--brand-green-700); }
+  .channel-mark.tone-1,.channel-mark.tone-2,.channel-mark.tone-3 { background:var(--brand-green-500); box-shadow:0 0 0 4px var(--brand-green-100); }
+}
+
+/* Separate the patient identity card from the active section content. */
+@media screen {
+  .patient-profile-page > .profile-hero { margin-bottom:24px; }
+}
+@media screen and (max-width:640px) {
+  .patient-profile-page > .profile-hero { margin-bottom:16px; }
+}
+
+/* Search results use a lighter surface than the patient identity card. */
+@media screen {
+  .directory-page .directory-results {
+    overflow:hidden;
+    border-color:#cfe3da;
+    background:#f3faf7;
+    box-shadow:0 8px 24px #173d320c;
+  }
+  .directory-page .directory-results-head {
+    border-bottom-color:#d9e9e2;
+    background:linear-gradient(135deg,#fbfefa,#edf7f2);
+  }
+  .directory-page .directory-table th {
+    background:#e7f3ee;
+    color:#385b50;
+  }
+  .directory-page .directory-table tbody tr { background:#ffffffd9; }
+  .directory-page .directory-table tbody tr:nth-child(even) { background:#f9fcfa; }
+  .directory-page .directory-table tbody tr:hover { background:#edf7f2; }
+  .directory-page .directory-table td { border-top-color:#e1ece7; }
+}
+
+/* UI-only modernization: clearer surfaces, rhythm and interaction feedback. */
+@media screen {
+  .clinical-page { line-height:1.65; }
+  .clinical-header,.general-heading,.record-heading { text-wrap:balance; }
+  .clinical-card {
+    border-color:#d8e6df;
+    box-shadow:0 7px 24px #173d320a;
+  }
+  .primary-button {
+    box-shadow:0 5px 14px #1a5e4c22;
+  }
+  .primary-button:hover:not(:disabled) {
+    transform:translateY(-1px);
+    box-shadow:0 8px 18px #1a5e4c2b;
+  }
+  .primary-button:active:not(:disabled),.secondary-button:active:not(:disabled) { transform:translateY(0); }
+  .secondary-button:hover:not(:disabled) { border-color:#8dbdab; box-shadow:0 4px 12px #173d3210; }
+  .field input,.field select,.field textarea,
+  .search-control,.directory-filter select {
+    border-color:#cfdfd8;
+    box-shadow:inset 0 1px 0 #ffffff;
+  }
+  .field input:hover,.field select:hover,.field textarea:hover { border-color:#9fc8b8; }
+  .record-form { border-color:#d5e5de; background:linear-gradient(145deg,#f8fcfa,#fffdf8); }
+  .record-empty,.directory-empty {
+    border:1px dashed #c5ddd3;
+    border-radius:14px;
+    background:linear-gradient(145deg,#fbfefa,#f5faf7);
+  }
+  .status-pill { box-shadow:0 3px 10px #0871581c; }
+  .directory-page .directory-table tbody tr { transition:background-color 160ms ease,box-shadow 160ms ease; }
+  .directory-page .directory-table tbody tr:hover { box-shadow:inset 4px 0 0 #5b9c89; }
+  .directory-page .row-action { text-underline-offset:4px; }
+  .patient-profile-page .profile-data-grid>div,
+  .treatment-card,.appointment-card,.payment-card {
+    transition:transform 180ms ease,border-color 180ms ease,box-shadow 180ms ease;
+  }
+  @media (hover:hover) {
+    .patient-profile-page .profile-data-grid>div:hover,
+    .treatment-card:hover,.appointment-card:hover,.payment-card:hover {
+      transform:translateY(-2px);
+      border-color:#a9cdbf;
+      box-shadow:0 10px 24px #173d3212;
+    }
+  }
+}
+
+/* Brighter visual layer while retaining the green / white / cream identity. */
+@media screen {
+  .clinical-page,.directory-page,.finance-report-workspace {
+    background:linear-gradient(155deg,#fffefa 0%,#fbf8f0 52%,#f2faf6 100%);
+  }
+  .primary-button { background:linear-gradient(135deg,#19765d,#2f9175); border-color:#19765d; }
+  .primary-button:hover { background:linear-gradient(135deg,#145f4c,#267b64); }
+  .patient-profile-page .profile-hero {
+    background:radial-gradient(circle at 88% 18%,#7fdbb94d,transparent 28%),linear-gradient(120deg,#17483a,#26705a);
+  }
+  .patient-profile-page .profile-data-grid>div {
+    background:linear-gradient(140deg,#ffffff 58%,#effaf5);
+  }
+  .patient-profile-page :is(.general-heading,.record-heading) {
+    background:linear-gradient(115deg,#ffffff 48%,#eef9f4);
+  }
+  .status-pill { background:#d9f8e9; color:#087158; }
+  .status-pill::before { background:#18b986; }
+  .directory-page .directory-results-head { background:linear-gradient(135deg,#ffffff,#e8f7f0); }
+  .directory-page .directory-table th { background:#dff2ea; }
+  .read-only-notice { background:linear-gradient(135deg,#f4fbf8,#e7f6ef); }
+}
+
+/* Medication workspace aligned with the shared patient-page visual language. */
+@media screen {
+  .patient-profile-page .medication-workspace {
+    padding:24px;
+    border:1px solid var(--brand-border);
+    border-radius:18px;
+    background:#ffffff;
+    box-shadow:0 8px 26px #173d320c;
+  }
+  .patient-profile-page .medication-workspace>header {
+    position:relative;
+    display:flex;
+    align-items:center;
+    min-height:88px;
+    margin:0 0 22px;
+    padding:18px 22px 18px 70px;
+    border:1px solid #d9e9e2;
+    border-left:4px solid var(--brand-green-600);
+    border-radius:15px;
+    background:linear-gradient(120deg,#ffffff 45%,#edf9f4);
+  }
+  .patient-profile-page .medication-workspace>header::before {
+    content:"";
+    position:absolute;
+    left:22px;
+    width:34px;
+    height:34px;
+    border-radius:10px;
+    background:var(--brand-green-100) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23267862' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m8 4 8 16M6.5 8.5l9-3a4 4 0 0 1 2.5 7.6l-9 3a4 4 0 0 1-2.5-7.6Z'/%3E%3C/svg%3E") center/21px no-repeat;
+  }
+  .patient-profile-page .medication-workspace>header h2 { color:var(--brand-ink); font-size:21px; line-height:1.45; }
+  .patient-profile-page .medication-workspace>header p { margin-top:4px; color:var(--brand-muted); font-size:13px; line-height:1.7; }
+  .patient-profile-page .medication-catalog-manager {
+    margin:0 0 22px;
+    padding:0;
+    overflow:hidden;
+    border:1px solid #d4e7de;
+    border-radius:15px;
+    background:#fbfefa;
+    box-shadow:0 5px 18px #173d3208;
+  }
+  .patient-profile-page .medication-catalog-manager>summary {
+    padding:17px 20px;
+    border-bottom:1px solid transparent;
+    background:linear-gradient(120deg,#edf9f4,#f9fcfa);
+    color:#195743;
+    font-size:15px;
+  }
+  .patient-profile-page .medication-catalog-manager[open]>summary { border-bottom-color:#dcebe4; }
+  .patient-profile-page .medication-catalog-manager>p { margin:0; padding:14px 20px 4px; line-height:1.7; }
+  .patient-profile-page .medication-catalog-form {
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:14px;
+    padding:16px 20px 20px;
+  }
+  .patient-profile-page .medication-catalog-form>input,
+  .patient-profile-page .medication-catalog-field select,
+  .patient-profile-page .medication-catalog-field input,
+  .patient-profile-page .medication-catalog-guidance textarea {
+    width:100%;
+    min-height:46px;
+    padding:10px 13px;
+    border:1px solid #cfe0d8;
+    border-radius:10px;
+    background:#ffffff;
+    color:var(--brand-ink);
+    font:inherit;
+  }
+  .patient-profile-page .medication-catalog-form>input { align-self:end; }
+  .patient-profile-page .medication-catalog-guidance textarea { min-height:94px; line-height:1.55; }
+  .patient-profile-page .medication-catalog-form :is(input,select,textarea):hover { border-color:#91c5b0; }
+  .patient-profile-page .medication-catalog-form :is(input,select,textarea):focus {
+    border-color:var(--brand-green-600);
+    outline:3px solid #62b0952b;
+  }
+  .patient-profile-page .medication-catalog-form-actions {
+    align-self:end;
+    min-height:46px;
+  }
+  .patient-profile-page .medication-catalog-list { padding:0 20px 20px; }
+  .patient-profile-page .medication-catalog-list article {
+    padding:13px 15px;
+    border-color:#dce9e3;
+    background:#ffffff;
+  }
+  .patient-profile-page .medication-dispense-list { gap:18px; }
+  .patient-profile-page .medication-dispense-card {
+    padding:20px;
+    border-radius:15px;
+    box-shadow:0 6px 20px #173d3209;
+  }
+  .patient-profile-page .medication-dispense-card>section { border:1px solid #deebe5; background:#f4faf7; }
+}
+@media screen and (max-width:900px) {
+  .patient-profile-page .medication-catalog-form { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media screen and (max-width:640px) {
+  .patient-profile-page .medication-workspace { padding:14px; }
+  .patient-profile-page .medication-workspace>header { padding:16px 16px 16px 60px; }
+  .patient-profile-page .medication-workspace>header::before { left:15px; }
+  .patient-profile-page .medication-catalog-form { grid-template-columns:1fr; padding:14px; }
+  .patient-profile-page .medication-catalog-manager>p { padding:12px 14px 2px; }
+  .patient-profile-page .medication-catalog-list { padding:0 14px 14px; }
+}
+
+/* Final registration polish: calm hierarchy, aligned controls and one brand language. */
+@media screen {
+  .registration-page {
+    background:linear-gradient(180deg,#fffdf9,#fbf7ef);
+  }
+  .registration-page>.clinical-header {
+    margin-bottom:24px;
+    padding:6px 4px 22px;
+    border-bottom:1px solid #e2ebe6;
+  }
+  .registration-page>.clinical-header h1 {
+    color:#143e33;
+    font-size:clamp(25px,2vw,32px);
+    line-height:1.35;
+    letter-spacing:-.35px;
+  }
+  .registration-page>.clinical-header p {
+    max-width:720px;
+    margin-top:7px;
+    color:#63776f;
+    font-size:14px;
+    line-height:1.75;
+  }
+  .registration-page .registration-identity-section {
+    padding:26px 28px 30px;
+    border:1px solid #dce9e3;
+    border-radius:18px 18px 0 0;
+    background:#ffffff;
+    box-shadow:0 10px 30px #173d3209;
+  }
+  .registration-page .registration-section-heading {
+    align-items:center;
+    margin-bottom:24px;
+    padding:0 0 20px;
+    border-bottom:1px solid #e5eee9;
+  }
+  .registration-page .registration-section-heading h2 {
+    position:relative;
+    padding-left:16px;
+    color:#153f34;
+    font-size:19px;
+  }
+  .registration-page .registration-section-heading h2::before {
+    content:"";
+    position:absolute;
+    top:3px;
+    bottom:3px;
+    left:0;
+    width:4px;
+    border-radius:999px;
+    background:#4b9d80;
+  }
+  .registration-page .registration-section-heading p {
+    margin-top:5px;
+    padding-left:16px;
+    color:#708079;
+    font-size:12px;
+  }
+  .registration-page .smart-card-button {
+    border:1px solid #b8d8cc;
+    background:#f5fbf8;
+    color:#17634f;
+    box-shadow:0 3px 10px #173d3208;
+  }
+  .registration-page .registration-identity-grid {
+    gap:20px 24px;
+  }
+  .registration-page .field label {
+    min-height:auto;
+    color:#254a40;
+    font-size:14px;
+    font-weight:700;
+  }
+  .registration-page .field :is(input,select,textarea) {
+    border-color:#cbded6;
+    background:#fff;
+    color:#173d33;
+    box-shadow:inset 0 1px 0 #ffffff,0 2px 7px #173d3207;
+  }
+  .registration-page .field :is(input,select,textarea):hover {
+    border-color:#93c3b0;
+  }
+  .registration-page .registration-input-action>button {
+    border-color:#b8d8cc;
+    background:#eaf6f1;
+    color:#17634f;
+    box-shadow:none;
+  }
+  .registration-page .registration-input-action>button:hover {
+    border-color:#78ad98;
+    background:#dff1e9;
+  }
+  .registration-page .sensitive-input button {
+    border-color:#c1d9cf;
+    background:#f0f8f4;
+    color:#315f52;
+  }
+  .registration-page .registration-status-field select {
+    border-color:#9fcab9;
+    background:#edf8f3;
+    color:#0d6d53;
+  }
+  .registration-page .registration-identity-grid .field>small {
+    min-height:34px;
+    margin-top:0;
+    color:#74857f;
+    line-height:1.55;
+  }
+  .registration-page>form>.clinical-section+.clinical-section {
+    border:1px solid #dce9e3;
+    border-top:0;
+    background:#ffffff;
+    box-shadow:0 10px 30px #173d3209;
+  }
+}
+@media screen and (max-width:900px) {
+  .registration-page .registration-identity-section { padding:22px; }
+}
+@media screen and (max-width:640px) {
+  .registration-page>.clinical-header { padding-bottom:18px; }
+  .registration-page .registration-identity-section { padding:18px 16px; }
+  .registration-page .registration-section-heading { align-items:flex-start; }
+  .registration-page .registration-section-heading p { padding-left:0; }
+}
