@@ -41,6 +41,7 @@ model Patient {
   payments       Payment[]
   medicalCertificates MedicalCertificate[]
   triageAssessments TriageAssessment[]
+  statusChanges PatientStatusChange[]
 
   @@index([firstName, lastName])
 }
@@ -103,14 +104,20 @@ model Payment {
   changeSatang   Int?
   qrPayload      String?
   confirmedAt    DateTime?
+  createdByUsername String?
+  createdByName String?
+  createdByRole String?
+  treatmentRecordId String? @unique
   reviewedByUsername String?
   reviewedByName String?
+  reviewedByRole String?
   reviewNote     String?
   slipFileName   String?
   slipMimeType   String?
   slipData       Bytes?
   createdAt      DateTime  @default(now())
   patient        Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  treatmentRecord TreatmentRecord? @relation("MedicationTreatmentPayment", fields: [treatmentRecordId], references: [id], onDelete: SetNull)
 
   @@index([patientId, paidAt])
 }
@@ -122,6 +129,9 @@ model TreatmentRecord {
   department       String
   diagnosis        String
   clinician        String?
+  createdByUsername String?
+  createdByName String?
+  createdByRole String?
   paymentType      String?
   visitType        String
   visitNumber      String?
@@ -135,7 +145,9 @@ model TreatmentRecord {
   diagnosisCode    String?
   diagnosisName    String?
   treatmentPlan    String?
+  suppliesUsed     String?
   medicationOrders String?
+  medicationOrderAudit String?
   appointmentId    String?  @unique
   triageAssessmentId String? @unique
   visitSource      String   @default("walk_in")
@@ -146,6 +158,7 @@ model TreatmentRecord {
   appointment      Appointment? @relation("AppointmentResultTreatment", fields: [appointmentId], references: [id], onDelete: SetNull)
   triageAssessment TriageAssessment? @relation(fields: [triageAssessmentId], references: [id], onDelete: SetNull)
   medicationDispense MedicationDispense?
+  medicationPayment Payment? @relation("MedicationTreatmentPayment")
   createdAppointments Appointment[] @relation("AppointmentOriginTreatment")
   medicalCertificates MedicalCertificate[]
 
@@ -160,6 +173,7 @@ model MedicationDispense {
   notes              String?
   pharmacistUsername String?
   pharmacistName     String?
+  operatorRole String?
   dispensedAt        DateTime?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -384,4 +398,49 @@ model MedicalCertificate {
 
   @@index([patientId, issuedAt])
   @@index([treatmentRecordId, issuedAt])
+}
+
+model PatientStatusChange {
+  id                String   @id @default(cuid())
+  patientId         String
+  field             String
+  oldValue          String
+  newValue          String
+  reason            String
+  changedByUsername String
+  changedByName     String
+  changedAt         DateTime @default(now())
+  patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, changedAt])
+}
+
+model MedicationCatalogItem {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  strength        String
+  dosageForm      String
+  unit            String
+  indication      String?
+  directions      String?
+  unitPriceSatang Int
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([active, name])
+}
+model ServiceCatalogItem {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  category        String
+  unit            String
+  unitPriceSatang Int
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([active, category, name])
 }
