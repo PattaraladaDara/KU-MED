@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { requirePermission } from "@/lib/auth-session";
+import { can } from "@/lib/access-control";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +24,8 @@ function maskName(firstName: string, lastName: string) {
 const evaluationUnitByRole:Record<string,string>={doctor:"แพทย์",staff:"เวชระเบียน",nurse:"พยาบาล",pharmacist:"เภสัชกรรม",finance:"การเงิน"};
 
 export async function GET(request:NextRequest) {
+  const auth = requirePermission(request, "dashboard:view");
+  if (auth.response) return auth.response;
   try {
     const db = getDb(), today = bangkokDayRange(), weekStart = new Date(today.start.getTime() - 6 * 86400000);
     const [newPatients, treatments, appointments, payments, weekTreatments, pendingTriages, pendingMedications] = await Promise.all([
@@ -94,9 +98,8 @@ export async function GET(request:NextRequest) {
     const triageWaitMinutes=average(kpiTreatments.flatMap(item=>item.triageAssessment?[Math.max(0,(item.visitedAt.getTime()-item.triageAssessment.assessedAt.getTime())/60000)]:[]));
     const dispenseMinutes=average(dispensedToday.flatMap(item=>item.dispensedAt?[Math.max(0,(item.dispensedAt.getTime()-item.treatmentRecord.visitedAt.getTime())/60000)]:[]));
     const allocatedSatang=budgets.reduce((sum,item)=>sum+item.allocatedSatang,0),committedSatang=expenses.reduce((sum,item)=>sum+item.amountSatang,0);
-    const userKey=request.nextUrl.searchParams.get("userKey")||"";
-    const dashboardAccount=userKey?await db.staffAccount.findUnique({where:{username:userKey},select:{role:true}}):null;
-    const dashboardRole=dashboardAccount?.role||"staff",serviceUnit=evaluationUnitByRole[dashboardRole];
+    const dashboardRole=auth.session!.role,serviceUnit=evaluationUnitByRole[dashboardRole];
+    const canViewPatients=can(dashboardRole,"patients:view");
     const[systemEvaluations,serviceEvaluations]=await Promise.all([
       db.evaluation.findMany({where:{assessmentType:"system"},select:{serviceScore:true}}),
       db.evaluation.findMany({where:{assessmentType:"service",...(dashboardRole!=="admin"&&dashboardRole!=="executive"&&serviceUnit?{serviceUnit}:{})},select:{qualityScore:true,responsibilityScore:true,serviceScore:true}}),
@@ -110,18 +113,18 @@ export async function GET(request:NextRequest) {
         completed: treatedPatients.size,
         waiting: queue.filter(item => item.status === "waiting").length,
       },
-      queue, rooms: [...rooms].map(([name, value]) => ({ name, ...value })), trend,
-      pendingTriages: pendingTriages.map(item => ({
+      queue: canViewPatients ? queue : [], rooms: [...rooms].map(([name, value]) => ({ name, ...value })), trend,
+      pendingTriages: canViewPatients ? pendingTriages.map(item => ({
         id: item.id, patientId: item.patientId, assessedAt: item.assessedAt.toISOString(),
         patientName: maskName(item.patient.firstName, item.patient.lastName), chiefComplaint: item.chiefComplaint,
-      })),
-      pendingMedications: pendingMedications.map(item => ({
+      })) : [],
+      pendingMedications: canViewPatients ? pendingMedications.map(item => ({
         id: item.id, patientId: item.patientId, orderedAt: item.visitedAt.toISOString(),
         patientName: maskName(item.patient.firstName, item.patient.lastName), status: item.medicationDispense?.status ?? "pending",
-      })),
-      pendingPayments: payments.filter(item=>item.method==="โอนเงิน"&&item.status!=="paid").map(item=>({
+      })) : [],
+      pendingPayments: canViewPatients ? payments.filter(item=>item.method==="โอนเงิน"&&item.status!=="paid").map(item=>({
         id:item.id,patientId:item.patientId,createdAt:item.paidAt.toISOString(),patientName:maskName(item.patient.firstName,item.patient.lastName),description:item.description,status:item.status,
-      })),
+      })) : [],
       finance: {
         totalSatang: paid.reduce((sum, item) => sum + item.amountSatang, 0),
         cashSatang: moneyByMethod("เงินสด"), transferSatang: moneyByMethod("โอนเงิน"),

@@ -17,6 +17,8 @@ function requiredPermissions(path: string, method: string): string[] | null {
   if (path === "/api/dashboard" && method === "GET") return ["dashboard:view"];
   if (path === "/api/reports" && method === "GET") return ["reports:view"];
   if (path === "/api/finance") return method === "GET" ? ["finance:manage", "reports:view"] : ["finance:manage"];
+  if (path === "/api/appointments/mark-no-shows" && method === "POST") return ["appointments:manage"];
+  if (path === "/api/auth/logout-all" && method === "POST") return ["settings:own", "settings:manage"];
   if (path === "/api/service-catalog" && method === "GET") return ["service-catalog:use", "service-catalog:manage"];
   if (path === "/api/service-catalog" && method === "POST") return ["service-catalog:manage"];
   if (/^\/api\/service-catalog\/[^/]+$/.test(path)) return ["service-catalog:manage"];
@@ -53,9 +55,9 @@ export async function proxy(request: NextRequest) {
   const session = getAuthSession(request);
   if (!session) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบใหม่" }, { status: 401 });
   try {
-    const account = await getDb().staffAccount.findUnique({ where: { username: session.username }, select: { role: true, active: true, applicationStatus: true, accessStartsAt: true, accessEndsAt: true, licenseExpiresAt: true } });
+    const account = await getDb().staffAccount.findUnique({ where: { username: session.username }, select: { role: true, active: true, applicationStatus: true, accessStartsAt: true, accessEndsAt: true, licenseExpiresAt: true, sessionVersion: true } });
     const now = new Date();
-    if (!account || !account.active || account.applicationStatus !== "approved" || account.role !== session.role || (account.accessStartsAt && account.accessStartsAt > now) || (account.accessEndsAt && account.accessEndsAt < now) || (account.licenseExpiresAt && account.licenseExpiresAt < now)) {
+    if (!account || !account.active || account.applicationStatus !== "approved" || account.role !== session.role || account.sessionVersion !== session.sessionVersion || (account.accessStartsAt && account.accessStartsAt > now) || (account.accessEndsAt && account.accessEndsAt < now) || (account.licenseExpiresAt && account.licenseExpiresAt < now)) {
       return NextResponse.json({ error: "บัญชีนี้ไม่มีสิทธิ์ใช้งานหรือสิทธิ์หมดอายุแล้ว กรุณาเข้าสู่ระบบใหม่" }, { status: 403 });
     }
   } catch {

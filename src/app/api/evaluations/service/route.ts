@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { text } from "@/lib/api-validation";
-import { getAuthSession } from "@/lib/auth-session";
+import { requirePermission } from "@/lib/auth-session";
 
 export const runtime = "nodejs";
 const connectionId = "service-evaluation";
@@ -35,7 +35,6 @@ function sheetDetails(value: string) {
   } catch { return null; }
 }
 function validFormUrl(value: string) { try { const url = new URL(value); return url.protocol === "https:" && url.hostname === "docs.google.com" && url.pathname.startsWith("/forms/"); } catch { return false; } }
-async function admin(actorKey: string) { if (actorKey === "demo-admin") return true; return (await getDb().staffAccount.findUnique({ where: { username: actorKey }, select: { role: true } }))?.role === "admin"; }
 async function downloadRows(sheetCsvUrl: string) {
   const response = await fetch(sheetCsvUrl, { signal: AbortSignal.timeout(20_000), cache: "no-store" });
   if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? "เปิด Google Sheets แล้วตั้งค่าการเข้าถึงเป็น ‘ทุกคนที่มีลิงก์ดูได้’ ก่อน" : "ดาวน์โหลดข้อมูลจาก Google Sheets ไม่สำเร็จ");
@@ -72,17 +71,17 @@ async function discover(formUrl: string, sheetUrl: string) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = requirePermission(request, ["evaluations:view", "evaluations:manage"]);
+  if (auth.response) return auth.response;
   try {
-    const userKey = getAuthSession(request)?.username || "";
-    const account = await getDb().staffAccount.findUnique({ where: { username: userKey }, select: { role: true } });
-    const role = account?.role || "staff", unit = unitByRole[role];
+    const role = auth.session!.role, unit = unitByRole[role];
     const where = { assessmentType: "service", ...(role !== "admin" && role !== "executive" && unit ? { serviceUnit: unit } : {}) };
     const [items, connection] = await Promise.all([
       getDb().evaluation.findMany({ where, orderBy: { createdAt: "desc" }, take: 500 }),
       getDb().googleFormConnection.findUnique({ where: { id: connectionId }, include: { questions: { orderBy: [{ active: "desc" }, { firstSeenAt: "asc" }] } } }),
     ]);
     return NextResponse.json({
-      role, canManage: role === "admin" || userKey === "demo-admin",
+      role, canManage: role === "admin",
       config: connection ? { formUrl: connection.formUrl, sheetUrl: connection.sheetCsvUrl, formId: connection.formId, title: connection.title || "", status: connection.status, lastSchemaSyncAt: connection.lastSchemaSyncAt, lastResponseSyncAt: connection.lastResponseSyncAt, lastError: connection.lastError } : { formUrl: "", sheetUrl: "", formId: "", title: "", status: "not_connected", lastSchemaSyncAt: null, lastResponseSyncAt: null, lastError: null },
       questions: connection?.questions.map((question) => ({ questionId: question.questionId, title: question.title, questionType: question.questionType, metricKey: question.metricKey || "", active: question.active })) || [],
       summary: { responses: items.length, overall: average(items.map((item) => item.qualityScore)), staff: average(items.map((item) => item.responsibilityScore)), speed: average(items.map((item) => item.serviceScore)) },
@@ -93,9 +92,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const auth = requirePermission(request, "evaluations:manage");
+  if (auth.response) return auth.response;
   try {
-    const body = await request.json() as Record<string, unknown>, actorKey = text(body.actorKey);
-    if (!await admin(actorKey)) return NextResponse.json({ error: "เฉพาะผู้ดูแลระบบเท่านั้น" }, { status: 403 });
+    const body = await request.json() as Record<string, unknown>;
     const mappings = Array.isArray(body.mappings) ? body.mappings : [], selected = new Set<string>();
     for (const entry of mappings) {
       if (!entry || typeof entry !== "object") continue;
@@ -109,9 +109,10 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = requirePermission(request, "evaluations:manage");
+  if (auth.response) return auth.response;
   try {
-    const body = await request.json() as Record<string, unknown>, actorKey = text(body.actorKey), action = text(body.action) || "sync";
-    if (!await admin(actorKey)) return NextResponse.json({ error: "เฉพาะผู้ดูแลระบบเท่านั้น" }, { status: 403 });
+    const body = await request.json() as Record<string, unknown>, action = text(body.action) || "sync";
     if (action === "connect") { const count = await discover(text(body.formUrl), text(body.sheetUrl)); return NextResponse.json({ message: `เชื่อมต่อสำเร็จ พบข้อมูล ${count} คอลัมน์` }); }
     const connection = await getDb().googleFormConnection.findUnique({ where: { id: connectionId } });
     if (!connection) return NextResponse.json({ error: "กรุณาเชื่อมต่อ Google Sheets ก่อน" }, { status: 400 });

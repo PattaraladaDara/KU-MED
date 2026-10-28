@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
+import { Prisma } from "@/generated/prisma/client";
 import { getDb } from "@/lib/db";
 import { isUniqueError, optionalText, text } from "@/lib/api-validation";
 import { parseBangkokDate, parseBangkokDateTime, THAI_TIME_ZONE } from "@/lib/thai-date";
@@ -11,15 +12,70 @@ import { parseMedicationOrderSnapshots } from "@/lib/medication-orders";
 
 export const runtime = "nodejs";
 
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id:string }> }) {
+class AppointmentSlotConflict extends Error {}
+
+async function ensureAppointmentSlotAvailable(
+  db: Prisma.TransactionClient,
+  input: { patientId:string; department:string; clinician:string|null; scheduledAt:Date; excludeId?:string },
+) {
+  const existing = await db.appointment.findMany({
+    where: {
+      status: "scheduled",
+      scheduledAt: input.scheduledAt,
+      ...(input.excludeId ? { id: { not: input.excludeId } } : {}),
+      OR: [
+        { patientId: input.patientId },
+        { department: input.department },
+        ...(input.clinician ? [{ clinician: input.clinician }] : []),
+      ],
+    },
+    select: { patientId:true, department:true, clinician:true },
+  });
+  if (existing.some(item => item.patientId === input.patientId)) throw new AppointmentSlotConflict("ผู้รับบริการมีนัดหมายในช่วงเวลานี้แล้ว");
+  if (existing.some(item => item.department === input.department)) throw new AppointmentSlotConflict("ห้องตรวจนี้มีนัดหมายในช่วงเวลาดังกล่าวแล้ว กรุณาเลือกเวลาอื่น");
+  if (input.clinician && existing.some(item => item.clinician?.trim().toLocaleLowerCase() === input.clinician!.trim().toLocaleLowerCase())) throw new AppointmentSlotConflict("ผู้ให้บริการมีนัดหมายในช่วงเวลาดังกล่าวแล้ว กรุณาเลือกเวลาอื่น");
+}
+
+function isSerializationConflict(error:unknown) {
+  return typeof error === "object" && error !== null && "code" in error && (error as {code?:unknown}).code === "P2034";
+}
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id:string }> }) {
+  const auth = requirePermission(request, "patients:view");
+  if (auth.response) return auth.response;
   try {
     const { id } = await params;
-    const db=getDb();const now=new Date();const today=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(now);const close=parseBangkokDateTime(`${today}T15:30`);const missedBefore=now>=close?close:new Date(close.getTime()-86400000);
-    await db.appointment.updateMany({where:{patientId:id,status:"scheduled",scheduledAt:{lt:missedBefore}},data:{status:"no_show"}});
+    const db=getDb();
     const patient = await db.patient.findUnique({ where:{ id }, include:{
       treatments:{ orderBy:{ visitedAt:"desc" },include:{medicationDispense:true} }, triageAssessments:{orderBy:{assessedAt:"desc"},take:10}, appointments:{ orderBy:{ scheduledAt:"desc" } }, payments:{ orderBy:{ paidAt:"desc" },omit:{slipData:true} }, statusChanges:{orderBy:{changedAt:"desc"},take:20},
     } });
     if (!patient) return NextResponse.json({ error:"ไม่พบข้อมูลผู้ใช้บริการ" },{status:404});
+    // Keep the API response aligned with each role's work. Hiding a tab in the
+    // client is not an access control boundary.
+    const role = auth.session!.role;
+    if (role === "pharmacist") {
+      const { id: patientId, title, firstName, lastName, studentId, status, allergyNotes } = patient;
+      return NextResponse.json({ patient: { id: patientId, title, firstName, lastName, studentId, status, allergyNotes, treatments: [], triageAssessments: [], appointments: [], payments: [], statusChanges: [] } });
+    }
+    if (role === "finance") {
+      const { id: patientId, title, firstName, lastName, studentId, status, faculty, coverage, coverageStatus } = patient;
+      return NextResponse.json({ patient: {
+        id: patientId, title, firstName, lastName, studentId, status, faculty, coverage, coverageStatus,
+        // Finance needs prescription totals to create a bill, not clinical notes.
+        treatments: patient.treatments.map(({ id, visitedAt, medicationOrders }) => ({ id, visitedAt, medicationOrders })),
+        payments: patient.payments, triageAssessments: [], appointments: [], statusChanges: [],
+      } });
+    }
+    if (role === "staff") {
+      return NextResponse.json({ patient: { ...patient, treatments: [], triageAssessments: [], payments: [] } });
+    }
+    if (role === "doctor") {
+      const { id: patientId, title, firstName, lastName, studentId, status, birthDate, gender, bloodGroup, faculty, major, studyYear, phone, email, coverage, coverageStatus, allergyNotes } = patient;
+      return NextResponse.json({ patient: {
+        id: patientId, title, firstName, lastName, studentId, status, birthDate, gender, bloodGroup, faculty, major, studyYear, phone, email, coverage, coverageStatus, allergyNotes,
+        treatments: patient.treatments, triageAssessments: patient.triageAssessments, appointments: patient.appointments, payments: [], statusChanges: [],
+      } });
+    }
     return NextResponse.json({ patient });
   } catch { return NextResponse.json({ error:"ไม่สามารถโหลดข้อมูลได้" },{status:503}); }
 }
@@ -93,7 +149,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const createdAt=new Date(),createdDate=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(createdAt);
       const serviceDayStart=parseBangkokDateTime(`${createdDate}T00:00`);
       const originTreatment=await getDb().treatmentRecord.findFirst({where:{patientId:id,visitedAt:{gte:serviceDayStart,lte:createdAt}},orderBy:{visitedAt:"desc"},select:{id:true}});
-      const record=await getDb().appointment.create({data:{patientId:id,scheduledAt,endsAt,department,reason,clinician:optionalText(body.clinician),notes:optionalText(body.notes),result:null,status:"scheduled",originTreatmentId:originTreatment?.id??null}});
+      const clinician=optionalText(body.clinician);
+      const record=await getDb().$transaction(async tx=>{
+        await ensureAppointmentSlotAvailable(tx,{patientId:id,department,clinician,scheduledAt});
+        return tx.appointment.create({data:{patientId:id,scheduledAt,endsAt,department,reason,clinician,notes:optionalText(body.notes),result:null,status:"scheduled",originTreatmentId:originTreatment?.id??null}});
+      },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
       return NextResponse.json({record},{status:201});
     }
         if (kind==="payment") {
@@ -113,32 +173,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         medicationDescriptions=orderedItems.map(item=>`${item.name} ${item.strength} ${item.quantity} ${item.unit} — ${(item.lineTotalSatang/100).toFixed(2)} บาท`);
       }
       let serviceTotalSatang=0;
-      let serviceDescriptions:string[]=[];
-      if(Array.isArray(body.serviceItems)){
-const serviceItems=body.serviceItems as Record<string,unknown>[];
-        if(serviceItems.length>30)return NextResponse.json({error:"เพิ่มค่าบริการได้ไม่เกิน 30 รายการ"},{status:400});
-        const serviceCatalogIds=serviceItems.map(item=>text(item.catalogItemId)).filter(Boolean);
-        const serviceCatalogRows=serviceCatalogIds.length?await getDb().serviceCatalogItem.findMany({where:{id:{in:serviceCatalogIds},active:true}}):[];
-        const serviceCatalogById=new Map(serviceCatalogRows.map(item=>[item.id,item]));
-        for(const item of serviceItems){
-          const catalogId=text(item.catalogItemId);
-          if(catalogId){
-            const catalogItem=serviceCatalogById.get(catalogId),quantity=Number(item.quantity);
-            if(!catalogItem||!Number.isFinite(quantity)||quantity<=0||quantity>100000)return NextResponse.json({error:"ค่าบริการบางรายการถูกปิดหรือจำนวนไม่ถูกต้อง กรุณาโหลดรายการใหม่"},{status:400});
-            const itemSatang=Math.round(catalogItem.unitPriceSatang*quantity);
-            if(!Number.isSafeInteger(itemSatang))return NextResponse.json({error:"จำนวนค่าบริการสูงเกินกว่าที่ระบบรองรับ"},{status:400});
-            serviceTotalSatang+=itemSatang;
-            serviceDescriptions.push(`${catalogItem.name} ${quantity} ${catalogItem.unit} — ${(itemSatang/100).toFixed(2)} บาท`);
-          }else{
-            const itemDescription=text(item.description),itemAmount=Number(item.amount);
-            if(!itemDescription||!Number.isFinite(itemAmount)||itemAmount<=0||itemAmount>1000000)return NextResponse.json({error:"กรุณากรอกรายการและราคาค่าบริการให้ถูกต้อง"},{status:400});
-            const itemSatang=Math.round(itemAmount*100);serviceTotalSatang+=itemSatang;serviceDescriptions.push(`${itemDescription} — ${(itemSatang/100).toFixed(2)} บาท`);
-          }
-        }
-      }else{
-        const legacyAmount=Number(body.amount),legacyDescription=text(body.description);
-        if(!Number.isFinite(legacyAmount)||legacyAmount<0||!legacyDescription)return NextResponse.json({error:"กรุณากรอกรายการและจำนวนเงินให้ถูกต้อง"},{status:400});
-        serviceTotalSatang=Math.round(legacyAmount*100);serviceDescriptions=[legacyDescription];
+      const serviceDescriptions:string[]=[];
+      if(!Array.isArray(body.serviceItems))return NextResponse.json({error:"กรุณาเลือกค่าบริการจากบัญชีกลางก่อนบันทึก"},{status:400});
+      const serviceItems=body.serviceItems as Record<string,unknown>[];
+      if(serviceItems.length>30)return NextResponse.json({error:"เพิ่มค่าบริการได้ไม่เกิน 30 รายการ"},{status:400});
+      if(serviceItems.some(item=>!item||!text(item.catalogItemId)))return NextResponse.json({error:"ค่าบริการทุกรายการต้องเลือกจากบัญชีกลาง"},{status:400});
+      const serviceCatalogIds=serviceItems.map(item=>text(item.catalogItemId));
+      const serviceCatalogRows=serviceCatalogIds.length?await getDb().serviceCatalogItem.findMany({where:{id:{in:serviceCatalogIds},active:true}}):[];
+      const serviceCatalogById=new Map(serviceCatalogRows.map(item=>[item.id,item]));
+      for(const item of serviceItems){
+        const catalogId=text(item.catalogItemId),catalogItem=serviceCatalogById.get(catalogId),quantity=Number(item.quantity);
+        if(!catalogItem||!Number.isFinite(quantity)||quantity<=0||quantity>100000)return NextResponse.json({error:"ค่าบริการบางรายการถูกปิดหรือจำนวนไม่ถูกต้อง กรุณาโหลดรายการใหม่"},{status:400});
+        const itemSatang=Math.round(catalogItem.unitPriceSatang*quantity);
+        if(!Number.isSafeInteger(itemSatang))return NextResponse.json({error:"จำนวนค่าบริการสูงเกินกว่าระบบรองรับ"},{status:400});
+        serviceTotalSatang+=itemSatang;
+        serviceDescriptions.push(`${catalogItem.name} ${quantity} ${catalogItem.unit} — ${(itemSatang/100).toFixed(2)} บาท`);
       }
       const amountSatang=medicationTotalSatang+serviceTotalSatang;
       const description=[...medicationDescriptions,...serviceDescriptions].join("\n");
@@ -151,7 +200,7 @@ const serviceItems=body.serviceItems as Record<string,unknown>[];
       return NextResponse.json({record},{status:201});
     }
 return NextResponse.json({error:"ประเภทรายการไม่ถูกต้อง"},{status:400});
-  } catch(error) { if(isUniqueError(error))return NextResponse.json({error:"ใบสั่งยานี้ถูกนำไปคิดเงินแล้ว"},{status:409}); return NextResponse.json({error:"ไม่สามารถบันทึกรายการได้"},{status:503}); }
+  } catch(error) { if(error instanceof AppointmentSlotConflict)return NextResponse.json({error:error.message},{status:409});if(isSerializationConflict(error))return NextResponse.json({error:"มีผู้จองช่วงเวลานี้พร้อมกัน กรุณาโหลดข้อมูลใหม่และเลือกเวลาอื่น"},{status:409});if(isUniqueError(error))return NextResponse.json({error:"ใบสั่งยานี้ถูกนำไปคิดเงินแล้ว"},{status:409}); return NextResponse.json({error:"ไม่สามารถบันทึกรายการได้"},{status:503}); }
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id:string }> }) {
@@ -176,6 +225,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const appointmentId=text(body.appointmentId),scheduledDate=text(body.scheduledDate),scheduledTime=text(body.scheduledTime);
       const existing=await getDb().appointment.findFirst({where:{id:appointmentId,patientId:id}});
       if(!existing)return NextResponse.json({error:"ไม่พบรายการนัดหมาย"},{status:404});
+      if(existing.status!=="scheduled")return NextResponse.json({error:"เลื่อนได้เฉพาะนัดหมายที่ยังรอรับบริการ"},{status:409});
       if(!/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate)||!isWeekday(scheduledDate))return NextResponse.json({error:"วันนัดหมายต้องเป็นวันจันทร์–ศุกร์เท่านั้น"},{status:400});
       if(!isAppointmentTime(scheduledTime))return NextResponse.json({error:"เลือกเวลาได้เฉพาะ 09:00–11:30 น. และ 13:00–15:00 น."},{status:400});
       const originalDate=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(existing.scheduledAt);
@@ -183,7 +233,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const scheduledAt=parseBangkokDateTime(`${scheduledDate}T${scheduledTime}`);
       const duration=existing.endsAt?Math.max(0,existing.endsAt.getTime()-existing.scheduledAt.getTime()):0;
       const endsAt=duration?new Date(scheduledAt.getTime()+duration):null;
-      const appointment=await getDb().appointment.update({where:{id:appointmentId},data:{scheduledAt,endsAt}});
+      const appointment=await getDb().$transaction(async tx=>{
+        await ensureAppointmentSlotAvailable(tx,{patientId:id,department:existing.department,clinician:existing.clinician,scheduledAt,excludeId:appointmentId});
+        return tx.appointment.update({where:{id:appointmentId},data:{scheduledAt,endsAt}});
+      },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
       return NextResponse.json({appointment});
     }
     const recordId=text(body.recordId);
@@ -200,6 +253,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const record=await getDb().treatmentRecord.update({where:{id:recordId},data:{visitedAt,department,diagnosis,visitType,visitNumber:optionalText(body.visitNumber),clinician:optionalText(body.clinician),chiefComplaint:optionalText(body.chiefComplaint),diagnosisCode:diagnosisCode||null,diagnosisName:icd10?.description??null,treatmentPlan:optionalText(body.treatmentPlan),suppliesUsed:optionalText(body.suppliesUsed),...(body.medicationOrders!==undefined?{medicationOrders:optionalText(body.medicationOrders)}:{})}});
     return NextResponse.json({record});
   } catch(error) {
+    if(error instanceof AppointmentSlotConflict)return NextResponse.json({error:error.message},{status:409});
+    if(isSerializationConflict(error))return NextResponse.json({error:"มีผู้จองช่วงเวลานี้พร้อมกัน กรุณาโหลดข้อมูลใหม่และเลือกเวลาอื่น"},{status:409});
     if(isUniqueError(error))return NextResponse.json({error:"เลขประชาชน รหัสนิสิต หรืออีเมลนี้มีในระบบแล้ว"},{status:409});
     return NextResponse.json({error:"ไม่สามารถแก้ไขข้อมูลได้"},{status:503});
   }

@@ -209,10 +209,25 @@ model FinancialExpense {
   createdBy     String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  statusHistory FinancialExpenseStatusHistory[]
 
   @@index([expenseDate])
   @@index([status, expenseDate])
   @@index([category, expenseDate])
+}
+
+model FinancialExpenseStatusHistory {
+  id            String          @id @default(cuid())
+  expenseId     String
+  fromStatus    String
+  toStatus      String
+  actorUsername String
+  actorName     String
+  note          String?
+  createdAt     DateTime        @default(now())
+  expense       FinancialExpense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId, createdAt])
 }
 
 model Evaluation {
@@ -333,6 +348,7 @@ model StaffAccount {
   accessStartsAt DateTime?
   accessEndsAt   DateTime?
   lastLoginAt    DateTime?
+  sessionVersion Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   medicalCertificates MedicalCertificate[]

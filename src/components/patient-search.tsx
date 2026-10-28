@@ -3,8 +3,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormE
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-type Treatment = { id:string; visitedAt:string; department:string; diagnosis:string; clinician:string|null; visitType:string };
-type Patient = { id:string; citizenId:string; title:string; firstName:string; lastName:string; studentId:string; status:string; birthDate:string; gender:string; faculty:string; major:string; studyYear:string; phone:string; email:string; coverage:string; allergyNotes:string|null; treatments:Treatment[] };
+type Patient = { id:string; title:string; firstName:string; lastName:string; studentId:string; status:string; faculty:string; major:string; studyYear:string; email?:string };
 
 export function PatientSearch() {
   return <Suspense fallback={<div className="clinical-page">กำลังโหลดหน้าค้นหา...</div>}><PatientSearchContent/></Suspense>;

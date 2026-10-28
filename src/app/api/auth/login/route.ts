@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       displayName: `${account.firstName} ${account.lastName}`, medicalLicense: account.medicalLicense,
       avatarUrl: validProfilePhoto(photo?.value) ? photo.value : null,
     } });
-    response.headers.append("Set-Cookie", createSessionCookie(account.username, account.role));
+    response.headers.append("Set-Cookie", createSessionCookie(account.username, account.role, account.sessionVersion));
     return response;
   } catch {
     return NextResponse.json({ error: "ไม่สามารถเข้าสู่ระบบได้ กรุณาลองใหม่" }, { status: 503 });

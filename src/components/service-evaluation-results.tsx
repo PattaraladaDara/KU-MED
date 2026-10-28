@@ -24,7 +24,7 @@ export function ServiceEvaluationResults() {
   const [mappings, setMappings] = useState<Record<string, string>>({});
   const load = useCallback(async () => {
     if (!profile) return;
-    const response = await fetch(`/api/evaluations/service?userKey=${encodeURIComponent(profile.username)}`, { cache: "no-store" });
+    const response = await fetch("/api/evaluations/service", { cache: "no-store" });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "โหลดข้อมูลไม่สำเร็จ");
     setData(result); setFormUrl(result.config.formUrl || ""); setSheetUrl(result.config.sheetUrl || "");
@@ -33,7 +33,7 @@ export function ServiceEvaluationResults() {
   useEffect(() => {
     if (!profile) return;
     let active = true;
-    fetch(`/api/evaluations/service?userKey=${encodeURIComponent(profile.username)}`, { cache: "no-store" })
+    fetch("/api/evaluations/service", { cache: "no-store" })
       .then(async (response) => { const result = await response.json(); if (!response.ok) throw new Error(result.error || "โหลดข้อมูลไม่สำเร็จ"); return result as Data; })
       .then((result) => { if (active) { setData(result); setFormUrl(result.config.formUrl || ""); setSheetUrl(result.config.sheetUrl || ""); setMappings(Object.fromEntries(result.questions.map((question) => [question.questionId, question.metricKey]))); } })
       .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "โหลดข้อมูลไม่สำเร็จ"); })
@@ -44,7 +44,7 @@ export function ServiceEvaluationResults() {
     if (!profile) return;
     setSaving(true); setError(""); setNotice("");
     try {
-      const response = await fetch("/api/evaluations/service", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, actorKey: profile.username }) });
+      const response = await fetch("/api/evaluations/service", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "ดำเนินการไม่สำเร็จ");
       setNotice(result.message); await load();

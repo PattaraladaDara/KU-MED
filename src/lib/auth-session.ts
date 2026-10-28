@@ -6,7 +6,7 @@ const COOKIE_NAME = "ku_med_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
 const validRoles = new Set<SystemRole>(["admin", "doctor", "staff", "nurse", "pharmacist", "finance", "executive"]);
 
-export type AuthSession = { username: string; role: SystemRole; expiresAt: number };
+export type AuthSession = { username: string; role: SystemRole; expiresAt: number; sessionVersion: number };
 
 function secret() {
   const value = process.env.SESSION_SECRET;
@@ -18,9 +18,9 @@ function sign(value: string) {
   return createHmac("sha256", secret()).update(value).digest("base64url");
 }
 
-export function createSessionCookie(username: string, role: string) {
+export function createSessionCookie(username: string, role: string, sessionVersion = 0) {
   if (!validRoles.has(role as SystemRole)) throw new Error("Invalid account role");
-  const payload = Buffer.from(JSON.stringify({ username, role, expiresAt: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ username, role, sessionVersion, expiresAt: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS })).toString("base64url");
   const token = `${payload}.${sign(payload)}`;
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
   return `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}${secure}`;
@@ -42,7 +42,8 @@ export function getAuthSession(request: NextRequest): AuthSession | null {
     if (expected.length !== received.length || !timingSafeEqual(expected, received)) return null;
     const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Partial<AuthSession>;
     if (typeof parsed.username !== "string" || !parsed.username || typeof parsed.expiresAt !== "number" || parsed.expiresAt <= Math.floor(Date.now() / 1000) || !validRoles.has(parsed.role as SystemRole)) return null;
-    return { username: parsed.username, role: parsed.role as SystemRole, expiresAt: parsed.expiresAt };
+    const sessionVersion = typeof parsed.sessionVersion === "number" ? parsed.sessionVersion : 0;
+    return { username: parsed.username, role: parsed.role as SystemRole, sessionVersion, expiresAt: parsed.expiresAt };
   } catch {
     return null;
   }

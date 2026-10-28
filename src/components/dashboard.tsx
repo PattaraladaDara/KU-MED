@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { THAI_BUDDHIST_LOCALE, THAI_TIME_ZONE } from "@/lib/thai-date";
 import { getDemoSessionProfile } from "@/lib/demo-session";
+import { can } from "@/lib/access-control";
 
 type QueueStatus = "waiting" | "in_progress" | "completed" | "no_show";
 type DashboardIconName = "users" | "userPlus" | "calendar" | "clock" | "check" | "alert" | "rooms" | "chart" | "finance" | "shortcut" | "search" | "report";
@@ -49,9 +50,9 @@ export function Dashboard() {
       <ExecutiveOverview data={data}/>
       <ServiceOverview data={data} />
       <div className="dashboard-primary-grid">
-        <section className="dashboard-card queue-card"><CardHeader icon="calendar" title="คิวและนัดหมายวันนี้" subtitle={`${data.queue.length} รายการจากฐานข้อมูล`} action={<Link href="/search">ค้นหาผู้ป่วย</Link>} />
+        {can(profile?.role,"patients:view")&&<section className="dashboard-card queue-card"><CardHeader icon="calendar" title="คิวและนัดหมายวันนี้" subtitle={`${data.queue.length} รายการจากฐานข้อมูล`} action={<Link href="/search">ค้นหาผู้ป่วย</Link>} />
           {data.queue.length ? <div className="queue-table-wrap"><table><thead><tr><th>เวลา</th><th>ผู้ป่วย</th><th>ห้องตรวจ</th><th>รายการนัด</th><th>สถานะ</th><th/></tr></thead><tbody>{data.queue.map(item => <tr key={item.id}><td className="queue-time">{time(item.time)} น.</td><td><strong>{item.patientName}</strong><small>{item.studentId}</small></td><td>{item.department}</td><td><span>{item.reason}</span><small>{item.clinician || "ยังไม่ระบุแพทย์"}</small></td><td><span className={`queue-status ${item.status}`}>{statusText[item.status]}</span></td><td><Link className="open-patient" href={`/patients/${item.patientId}`} aria-label={`เปิดข้อมูล ${item.patientName}`}>›</Link></td></tr>)}</tbody></table></div> : <EmptyState text="วันนี้ยังไม่มีรายการนัดหมาย" />}
-        </section>
+        </section>}
         <section className="dashboard-card room-card"><CardHeader icon="rooms" title="สถานะห้องตรวจ" subtitle="จำนวนผู้ป่วยแยกตามห้อง" />
           <div className="room-list">{(activeRooms.length ? activeRooms : data.rooms).map(room => <article key={room.name}><div><span className={room.waiting ? "room-live" : "room-idle"}/><strong>{room.name}</strong></div><dl><div><dt>รับบริการ</dt><dd>{room.visits}</dd></div><div><dt>กำลังตรวจ</dt><dd>{room.inProgress}</dd></div><div><dt>รอตรวจ</dt><dd>{room.waiting}</dd></div></dl></article>)}</div>
         </section>
