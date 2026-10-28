@@ -1,0 +1,53 @@
+name: Deploy KU-MED to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ku-med-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy on Hostinger VPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          VPS_APP_PATH: ${{ vars.VPS_APP_PATH || '/opt/ku-med' }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          envs: VPS_APP_PATH
+          command_timeout: 30m
+          script: |
+            set -eu
+            cd "$VPS_APP_PATH"
+            git fetch origin main
+            git pull --ff-only origin main
+
+            docker compose build app migrate
+            docker compose up -d db
+            docker compose run --rm migrate
+            docker compose up -d --no-deps --force-recreate app
+
+            for attempt in $(seq 1 30); do
+              if curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null; then
+                echo "KU-MED deployment is healthy."
+                exit 0
+              fi
+              sleep 5
+            done
+
+            docker compose ps
+            docker compose logs --tail=100 app migrate
+            echo "KU-MED health check failed."
+            exit 1
