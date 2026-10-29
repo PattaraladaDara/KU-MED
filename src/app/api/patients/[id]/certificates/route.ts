@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { requirePermission } from "@/lib/auth-session";
+import { getAuthSession } from "@/lib/auth-session";
+import { can } from "@/lib/access-control";
 import { isWeekday } from "@/lib/business-date";
 import { parseBangkokDate, THAI_TIME_ZONE } from "@/lib/thai-date";
 
@@ -25,6 +27,9 @@ function restDayCount(start: string, end: string) {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = getAuthSession(request);
+  if (!session) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบใหม่" }, { status: 401 });
+  if (!can(session.role, "documents:print") && !can(session.role, "certificates:issue")) return NextResponse.json({ error: "บัญชีนี้ไม่มีสิทธิ์ดำเนินการ" }, { status: 403 });
   try {
     const { id } = await params;
     const treatmentRecordId = request.nextUrl.searchParams.get("treatmentRecordId") || undefined;

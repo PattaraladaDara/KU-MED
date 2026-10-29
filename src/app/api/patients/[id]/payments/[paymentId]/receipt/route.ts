@@ -1,12 +1,17 @@
 import { NextRequest,NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { THAI_BUDDHIST_LOCALE,THAI_TIME_ZONE } from "@/lib/thai-date";
+import { getAuthSession } from "@/lib/auth-session";
+import { can } from "@/lib/access-control";
 
 export const runtime="nodejs";
 const escape=(value:string)=>value.replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]!));
 const money=(satang:number|null)=>((satang||0)/100).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
 
-export async function GET(_request:NextRequest,{params}:{params:Promise<{id:string;paymentId:string}>}){
+export async function GET(request:NextRequest,{params}:{params:Promise<{id:string;paymentId:string}>}){
+  const session=getAuthSession(request);
+  if(!session)return NextResponse.json({error:"กรุณาเข้าสู่ระบบใหม่"},{status:401});
+  if(!can(session.role,"payments:view")||!can(session.role,"documents:print"))return NextResponse.json({error:"บัญชีนี้ไม่มีสิทธิ์ดำเนินการ"},{status:403});
   const{id,paymentId}=await params;
   const payment=await getDb().payment.findFirst({where:{id:paymentId,patientId:id},include:{patient:{select:{title:true,firstName:true,lastName:true,studentId:true}}}});
   if(!payment)return NextResponse.json({error:"ไม่พบใบเสร็จ"},{status:404});

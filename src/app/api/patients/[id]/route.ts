@@ -99,10 +99,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if(!["ห้องตรวจ1","ห้องตรวจ2","ห้องตรวจพิเศษ","ห้องตรวจ7 (ห้องหัตการ) ห้องสำหรับทำแผล"].includes(department))return NextResponse.json({error:"กรุณาเลือกห้องตรวจจากรายการที่กำหนด"},{status:400});
       const diagnosisCode=text(body.diagnosisCode).toUpperCase();
       const icd10=diagnosisCode?ICD10_ENTRIES.find((entry)=>entry.code===diagnosisCode):null;
-      if(diagnosisCode&&!icd10)return NextResponse.json({error:"กรุณาเลือกรหัส ICD-10 จากรายการที่มีในระบบ"},{status:400});
-      const triageAssessmentId=text(body.triageAssessmentId);const triage=triageAssessmentId?await getDb().triageAssessment.findFirst({where:{id:triageAssessmentId,patientId:id,treatmentRecord:null}}):null;
+      const customIcd10=diagnosisCode&&!icd10?await getDb().icd10CatalogEntry.findFirst({where:{code:diagnosisCode,active:true}}):null;
+      if(diagnosisCode&&!icd10&&!customIcd10)return NextResponse.json({error:"ไม่พบรหัส ICD-10 นี้ในบัญชีกลาง กรุณาเว้นรหัสและกรอกชื่อการวินิจฉัย หรือให้ผู้ดูแลเพิ่มรหัสที่ตรวจสอบแล้ว"},{status:400});
+      const diagnosisName=icd10?.description||customIcd10?.description||optionalText(body.diagnosisName,300);
+      const triageAssessmentId=text(body.triageAssessmentId);const triage=triageAssessmentId?await getDb().triageAssessment.findFirst({where:{id:triageAssessmentId,patientId:id,treatmentRecord:null}}):await getDb().triageAssessment.findFirst({where:{patientId:id,treatmentRecord:null},orderBy:{assessedAt:"desc"}});
       if(triageAssessmentId&&!triage)return NextResponse.json({error:"ไม่พบข้อมูลคัดกรองที่พร้อมใช้ หรือข้อมูลนี้ถูกเชื่อมกับการตรวจแล้ว"},{status:404});
-      const diagnosis=icd10?.description||triage?.chiefComplaint||text(body.chiefComplaint)||"ไม่ระบุการวินิจฉัย";
+      const diagnosis=diagnosisName||triage?.chiefComplaint||text(body.chiefComplaint)||"ไม่ระบุการวินิจฉัย";
       let medicationOrders = optionalText(body.medicationOrders);
       if (body.medicationItems !== undefined) {
         let submitted: unknown;
@@ -131,7 +133,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const visitDate=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(visitedAt);
       if(linkedAppointment){const appointmentDate=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(linkedAppointment.scheduledAt);const today=new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:THAI_TIME_ZONE}).format(new Date());if(appointmentDate!==today||visitDate!==appointmentDate)return NextResponse.json({error:"บันทึกการตรวจตามนัดได้เฉพาะในวันนัดหมาย"},{status:400});}
       const record=await getDb().$transaction(async db=>{
-        const created=await db.treatmentRecord.create({data:{patientId:id,visitedAt,department,diagnosis,visitType,clinician:auth.session!.role==="nurse"?`พยาบาล ${actorName}`:optionalText(body.clinician)||actorName,createdByUsername:auth.session!.username,createdByName:actorName,createdByRole:auth.session!.role,paymentType:patient.coverage,visitNumber:optionalText(body.visitNumber),temperature:triage?.temperature??numeric(body.temperature),bloodPressure:triage?.bloodPressure??optionalText(body.bloodPressure),pulse:triage?.pulse??integer(body.pulse),oxygenSaturation:triage?.oxygenSaturation??integer(body.oxygenSaturation),weightKg:triage?.weightKg??numeric(body.weightKg),heightCm:triage?.heightCm??numeric(body.heightCm),chiefComplaint:triage?.chiefComplaint??optionalText(body.chiefComplaint),diagnosisCode:diagnosisCode||null,diagnosisName:icd10?.description??null,treatmentPlan:optionalText(body.treatmentPlan),suppliesUsed:optionalText(body.suppliesUsed),medicationOrders,appointmentId:linkedAppointment?.id??null,triageAssessmentId:triage?.id??null,visitSource:linkedAppointment?"appointment":"walk_in",appointmentReason:linkedAppointment?.reason??null,appointmentScheduledAt:linkedAppointment?.scheduledAt??null}});
+        const created=await db.treatmentRecord.create({data:{patientId:id,visitedAt,department,diagnosis,visitType,clinician:auth.session!.role==="nurse"?`พยาบาล ${actorName}`:actorName,createdByUsername:auth.session!.username,createdByName:actorName,createdByRole:auth.session!.role,paymentType:patient.coverage,visitNumber:optionalText(body.visitNumber),temperature:triage?.temperature??numeric(body.temperature),bloodPressure:triage?.bloodPressure??optionalText(body.bloodPressure),pulse:triage?.pulse??integer(body.pulse),oxygenSaturation:triage?.oxygenSaturation??integer(body.oxygenSaturation),weightKg:triage?.weightKg??numeric(body.weightKg),heightCm:triage?.heightCm??numeric(body.heightCm),chiefComplaint:triage?.chiefComplaint??optionalText(body.chiefComplaint),diagnosisCode:diagnosisCode||null,diagnosisName,treatmentPlan:optionalText(body.treatmentPlan),suppliesUsed:optionalText(body.suppliesUsed),medicationOrders,appointmentId:linkedAppointment?.id??null,triageAssessmentId:triage?.id??null,visitSource:linkedAppointment?"appointment":"walk_in",appointmentReason:linkedAppointment?.reason??null,appointmentScheduledAt:linkedAppointment?.scheduledAt??null}});
         if(linkedAppointment)await db.appointment.update({where:{id:linkedAppointment.id},data:{status:"completed"}});
         return created;
       });
@@ -246,11 +248,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if(!department||!visitType)return NextResponse.json({error:"กรุณากรอกข้อมูลการรักษาให้ครบ"},{status:400});
     if(!["ห้องตรวจ1","ห้องตรวจ2","ห้องตรวจพิเศษ","ห้องตรวจ7 (ห้องหัตการ) ห้องสำหรับทำแผล"].includes(department))return NextResponse.json({error:"กรุณาเลือกห้องตรวจจากรายการที่กำหนด"},{status:400});
     const diagnosisCode=text(body.diagnosisCode).toUpperCase();const icd10=diagnosisCode?ICD10_ENTRIES.find(entry=>entry.code===diagnosisCode):null;
-    if(diagnosisCode&&!icd10)return NextResponse.json({error:"กรุณาเลือกรหัส ICD-10 จากรายการที่มีในระบบ"},{status:400});
-    const diagnosis=icd10?.description||text(body.chiefComplaint)||"ไม่ระบุการวินิจฉัย";
+    const customIcd10=diagnosisCode&&!icd10?await getDb().icd10CatalogEntry.findFirst({where:{code:diagnosisCode,active:true}}):null;
+    if(diagnosisCode&&!icd10&&!customIcd10)return NextResponse.json({error:"ไม่พบรหัส ICD-10 นี้ในบัญชีกลาง กรุณาเว้นรหัสและกรอกชื่อการวินิจฉัย หรือให้ผู้ดูแลเพิ่มรหัสที่ตรวจสอบแล้ว"},{status:400});
+    const diagnosisName=icd10?.description||customIcd10?.description||optionalText(body.diagnosisName,300);
+    const diagnosis=diagnosisName||text(body.chiefComplaint)||"ไม่ระบุการวินิจฉัย";
     const visitedAt=parseBangkokDateTime(text(body.visitedAt));
     if(Number.isNaN(visitedAt.getTime()))return NextResponse.json({error:"วันที่เข้ารับบริการไม่ถูกต้อง"},{status:400});
-    const record=await getDb().treatmentRecord.update({where:{id:recordId},data:{visitedAt,department,diagnosis,visitType,visitNumber:optionalText(body.visitNumber),clinician:optionalText(body.clinician),chiefComplaint:optionalText(body.chiefComplaint),diagnosisCode:diagnosisCode||null,diagnosisName:icd10?.description??null,treatmentPlan:optionalText(body.treatmentPlan),suppliesUsed:optionalText(body.suppliesUsed),...(body.medicationOrders!==undefined?{medicationOrders:optionalText(body.medicationOrders)}:{})}});
+    const record=await getDb().treatmentRecord.update({where:{id:recordId},data:{visitedAt,department,diagnosis,visitType,visitNumber:optionalText(body.visitNumber),clinician:optionalText(body.clinician),chiefComplaint:optionalText(body.chiefComplaint),diagnosisCode:diagnosisCode||null,diagnosisName,treatmentPlan:optionalText(body.treatmentPlan),suppliesUsed:optionalText(body.suppliesUsed),...(body.medicationOrders!==undefined?{medicationOrders:optionalText(body.medicationOrders)}:{})}});
     return NextResponse.json({record});
   } catch(error) {
     if(error instanceof AppointmentSlotConflict)return NextResponse.json({error:error.message},{status:409});

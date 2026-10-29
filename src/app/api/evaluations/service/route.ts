@@ -6,7 +6,6 @@ import { requirePermission } from "@/lib/auth-session";
 
 export const runtime = "nodejs";
 const connectionId = "service-evaluation";
-const unitByRole: Record<string, string> = { doctor: "แพทย์", staff: "เวชระเบียน", nurse: "พยาบาล", pharmacist: "เภสัชกรรม", finance: "การเงิน" };
 const metricKeys = new Set(["serviceUnit", "overall", "staff", "speed", "feedback"]);
 const average = (values: number[]) => values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length * 10) / 10 : 0;
 const score = (value?: string) => { const number = Number(value); return Number.isFinite(number) && number >= 1 && number <= 5 ? Math.round(number) : 0; };
@@ -99,8 +98,8 @@ export async function GET(request: NextRequest) {
   const auth = requirePermission(request, ["evaluations:view", "evaluations:manage"]);
   if (auth.response) return auth.response;
   try {
-    const role = auth.session!.role, unit = unitByRole[role];
-    const where = { assessmentType: "service", ...(role !== "admin" && role !== "executive" && unit ? { serviceUnit: unit } : {}) };
+    const role = auth.session!.role;
+    const where = { assessmentType: "service" };
     const [items, connection] = await Promise.all([
       getDb().evaluation.findMany({ where, orderBy: { createdAt: "desc" }, take: 500 }),
       getDb().googleFormConnection.findUnique({ where: { id: connectionId }, include: { questions: { orderBy: [{ active: "desc" }, { firstSeenAt: "asc" }] } } }),

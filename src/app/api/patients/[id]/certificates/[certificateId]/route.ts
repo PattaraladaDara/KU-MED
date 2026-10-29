@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { getAuthSession } from "@/lib/auth-session";
+import { can } from "@/lib/access-control";
 
 export const runtime = "nodejs";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string; certificateId: string }> }) {
+  const session = getAuthSession(request);
+  if (!session) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบใหม่" }, { status: 401 });
+  if (!can(session.role, "documents:print") && !can(session.role, "certificates:issue")) return NextResponse.json({ error: "บัญชีนี้ไม่มีสิทธิ์ดำเนินการ" }, { status: 403 });
   try {
     const { id, certificateId } = await params;
     const body = await request.json() as { action?: string };
@@ -18,6 +23,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ certificate, isCopy: existing.printCount > 0 });
     }
     if (body.action === "deliver") {
+      if (!can(session.role, "certificates:issue")) return NextResponse.json({ error: "บัญชีนี้ไม่มีสิทธิ์บันทึกการส่งมอบใบรับรองแพทย์" }, { status: 403 });
       const certificate = await getDb().medicalCertificate.update({
         where: { id: certificateId }, data: { status: "delivered", deliveredAt: existing.deliveredAt || new Date() },
       });
