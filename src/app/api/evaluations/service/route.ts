@@ -12,6 +12,12 @@ const average = (values: number[]) => values.length ? Math.round(values.reduce((
 const score = (value?: string) => { const number = Number(value); return Number.isFinite(number) && number >= 1 && number <= 5 ? Math.round(number) : 0; };
 const hash = (value: string) => createHash("sha256").update(value).digest("hex").slice(0, 24);
 const errorMessage = (reason: unknown) => reason instanceof Error ? reason.message : "ไม่สามารถอ่านผลประเมินได้";
+function answerValue(sourceAnswers: unknown, questionId: string) {
+  if (!sourceAnswers || typeof sourceAnswers !== "object" || Array.isArray(sourceAnswers)) return "";
+  const answer = (sourceAnswers as Record<string, unknown>)[questionId];
+  if (Array.isArray(answer)) return String(answer[0] ?? "").trim();
+  return typeof answer === "string" ? answer.trim() : "";
+}
 
 function csvRows(input: string) {
   const rows: string[][] = []; let row: string[] = [], cell = "", quoted = false;
@@ -30,16 +36,35 @@ function sheetDetails(value: string) {
     if (url.protocol !== "https:" || url.hostname !== "docs.google.com") return null;
     const sheetId = url.pathname.match(/\/spreadsheets\/d\/([\w-]+)/)?.[1];
     if (!sheetId) return null;
-    const gid = url.searchParams.get("gid") || url.hash.match(/gid=(\d+)/)?.[1] || "0";
-    return { sheetId, csvUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}` };
+    const gid = url.searchParams.get("gid") || url.hash.match(/gid=(\d+)/)?.[1];
+    // Google Sheets export rejects a guessed gid=0 when the first tab has a
+    // different sheet ID. Omitting gid exports the default (first) tab.
+    return { sheetId, csvUrl: `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv${gid ? `&gid=${gid}` : ""}` };
   } catch { return null; }
 }
-function validFormUrl(value: string) { try { const url = new URL(value); return url.protocol === "https:" && url.hostname === "docs.google.com" && url.pathname.startsWith("/forms/"); } catch { return false; } }
+function sheetShareUrl(sheetCsvUrl: string) {
+  const sheet = sheetDetails(sheetCsvUrl);
+  if (!sheet) return "";
+  const gid = new URL(sheetCsvUrl).searchParams.get("gid");
+  return `https://docs.google.com/spreadsheets/d/${sheet.sheetId}/edit${gid ? `#gid=${gid}` : ""}`;
+}
+function validFormUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && (url.hostname === "forms.gle" || url.hostname === "docs.google.com" && url.pathname.startsWith("/forms/"));
+  } catch { return false; }
+}
 async function downloadRows(sheetCsvUrl: string) {
   const response = await fetch(sheetCsvUrl, { signal: AbortSignal.timeout(20_000), cache: "no-store" });
-  if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? "เปิด Google Sheets แล้วตั้งค่าการเข้าถึงเป็น ‘ทุกคนที่มีลิงก์ดูได้’ ก่อน" : "ดาวน์โหลดข้อมูลจาก Google Sheets ไม่สำเร็จ");
-  const rows = csvRows(await response.text());
-  if (!rows.length) throw new Error("ไม่พบหัวตารางใน Google Sheets");
+  if (!response.ok) {
+    if ([401, 403].includes(response.status)) throw new Error("เปิด Google Sheets แล้วตั้งค่าการเข้าถึงเป็น ‘ทุกคนที่มีลิงก์ดูได้’ และสิทธิ์ ‘ผู้มีสิทธิ์ดู’ ก่อน");
+    if (response.status === 404) throw new Error("ไม่พบ Google Sheets นี้ กรุณาตรวจลิงก์และแท็บที่เลือก");
+    throw new Error(`ดาวน์โหลดข้อมูลจาก Google Sheets ไม่สำเร็จ (HTTP ${response.status})`);
+  }
+  const csv = (await response.text()).replace(/^\uFEFF/, "");
+  if (/^\s*(<!doctype\s+html|<html|<head|<body)/i.test(csv)) throw new Error("Google ส่งหน้าเว็บแทนไฟล์คำตอบ กรุณาตรวจว่าชีตเปิดให้ ‘ทุกคนที่มีลิงก์ดูได้’ แล้ว");
+  const rows = csvRows(csv);
+  if (!rows.length || rows[0].length === 1 && /^\s*</.test(rows[0][0])) throw new Error("อ่านหัวตารางใน Google Sheets ไม่ได้ กรุณาตรวจลิงก์ชีตคำตอบอีกครั้ง");
   return rows;
 }
 function headerQuestions(headers: string[]) {
@@ -80,11 +105,19 @@ export async function GET(request: NextRequest) {
       getDb().evaluation.findMany({ where, orderBy: { createdAt: "desc" }, take: 500 }),
       getDb().googleFormConnection.findUnique({ where: { id: connectionId }, include: { questions: { orderBy: [{ active: "desc" }, { firstSeenAt: "asc" }] } } }),
     ]);
+    const displayMetrics = (connection?.questions || [])
+      .filter((question) => question.active && ["overall", "staff", "speed"].includes(question.metricKey || ""))
+      .sort((left, right) => ["overall", "staff", "speed"].indexOf(left.metricKey || "") - ["overall", "staff", "speed"].indexOf(right.metricKey || ""))
+      .map((question) => {
+        const legacyValue = (item: typeof items[number]) => question.metricKey === "overall" ? item.qualityScore : question.metricKey === "staff" ? item.responsibilityScore : item.serviceScore;
+        const values = items.map((item) => score(answerValue(item.sourceAnswers, question.questionId)) || legacyValue(item)).filter((value) => value >= 1 && value <= 5);
+        return { questionId: question.questionId, metricKey: question.metricKey, label: question.title, average: average(values), responses: values.length };
+      });
     return NextResponse.json({
       role, canManage: role === "admin",
-      config: connection ? { formUrl: connection.formUrl, sheetUrl: connection.sheetCsvUrl, formId: connection.formId, title: connection.title || "", status: connection.status, lastSchemaSyncAt: connection.lastSchemaSyncAt, lastResponseSyncAt: connection.lastResponseSyncAt, lastError: connection.lastError } : { formUrl: "", sheetUrl: "", formId: "", title: "", status: "not_connected", lastSchemaSyncAt: null, lastResponseSyncAt: null, lastError: null },
+      config: connection ? { formUrl: connection.formUrl, sheetUrl: sheetShareUrl(connection.sheetCsvUrl), formId: connection.formId, title: connection.title || "", status: connection.status, lastSchemaSyncAt: connection.lastSchemaSyncAt, lastResponseSyncAt: connection.lastResponseSyncAt, lastError: connection.lastError } : { formUrl: "", sheetUrl: "", formId: "", title: "", status: "not_connected", lastSchemaSyncAt: null, lastResponseSyncAt: null, lastError: null },
       questions: connection?.questions.map((question) => ({ questionId: question.questionId, title: question.title, questionType: question.questionType, metricKey: question.metricKey || "", active: question.active })) || [],
-      summary: { responses: items.length, overall: average(items.map((item) => item.qualityScore)), staff: average(items.map((item) => item.responsibilityScore)), speed: average(items.map((item) => item.serviceScore)) },
+      summary: { responses: items.length, overall: average(items.map((item) => item.qualityScore)), staff: average(items.map((item) => item.responsibilityScore)), speed: average(items.map((item) => item.serviceScore)), displayMetrics },
       units: Object.entries(items.reduce<Record<string, number>>((all, item) => { all[item.serviceUnit || "ไม่ระบุ"] = (all[item.serviceUnit || "ไม่ระบุ"] || 0) + 1; return all; }, {})).map(([label, value]) => ({ label, value })),
       comments: items.filter((item) => item.feedback).slice(0, 20).map((item) => ({ id: item.id, unit: item.serviceUnit, feedback: item.feedback, createdAt: item.createdAt })),
     });

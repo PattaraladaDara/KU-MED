@@ -1794,3 +1794,45 @@
   .registration-page .registration-section-heading { align-items:flex-start; }
   .registration-page .registration-section-heading p { padding-left:0; }
 }
+
+.appointment-print-setup { width:min(520px,100%); }
+.appointment-print-setup-body { display:grid; gap:8px; padding:22px 26px; }
+.appointment-print-setup-body label { display:flex; align-items:center; justify-content:space-between; gap:12px; color:#263b34; font-size:15px; font-weight:600; }
+.appointment-print-setup-body label strong { color:#08785e; font-size:20px; }
+.appointment-print-setup-body input[type="range"] { width:100%; accent-color:#08785e; }
+.appointment-paper-range { display:flex; justify-content:space-between; color:#6b7c76; font-size:12px; }
+.appointment-print-setup-body p { margin-top:7px; padding:12px 14px; border-radius:9px; background:#eef8f4; color:#49655c; font-size:12px; line-height:1.6; }
+.system-evaluation-dialog { width:min(430px,100%); padding:28px; text-align:center; }
+.system-evaluation-dialog-icon { display:grid; place-items:center; width:52px; height:52px; margin:2px auto 13px; border-radius:50%; background:#fff3d7; color:#9a6700; font-size:28px; font-weight:800; }
+.system-evaluation-dialog-icon.success { background:#e2f5ed; color:#08785e; }
+.system-evaluation-dialog h2 { color:#173d32; font:700 20px/1.4 "Prompt",sans-serif; }
+.system-evaluation-dialog p { margin:7px 0 22px; color:#60756d; font-size:14px; line-height:1.65; }
+.system-evaluation-dialog .primary-button { min-width:120px; }
+.evaluation-results-page .report-summary-grid { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
+@media print {
+  @page appointment-slip { size:var(--appointment-paper-width,80mm) var(--appointment-paper-height,145mm); margin:0; }
+  html:has(.appointment-print-slip),body:has(.appointment-print-slip) { width:var(--appointment-paper-width,80mm)!important; height:var(--appointment-paper-height,145mm)!important; min-height:0!important; margin:0!important; padding:0!important; overflow:hidden!important; background:#fff!important; }
+  .appointment-print-setup-backdrop { display:none!important; }
+  .appointment-print-slip,.appointment-print-slip * { visibility:visible!important; }
+  .appointment-print-slip { position:fixed!important; inset:0!important; z-index:99999!important; box-sizing:border-box!important; display:flex!important; flex-direction:column!important; width:var(--appointment-paper-width,80mm)!important; height:var(--appointment-paper-height,145mm)!important; min-height:0!important; max-height:none!important; margin:0!important; padding:5mm 4mm!important; overflow:visible!important; border:0!important; background:#fff!important; color:#111!important; font-family:"TH Sarabun New","Sarabun",sans-serif!important; print-color-adjust:exact; -webkit-print-color-adjust:exact; break-inside:avoid!important; page-break-inside:avoid!important; page-break-after:avoid!important; }
+  .appointment-print-slip::before { content:none!important; }
+  .appointment-print-slip .thermal-ticket-header { display:flex!important; align-items:center!important; gap:3mm!important; min-height:16mm!important; height:auto!important; margin:0!important; padding:0 0 2mm!important; border:0!important; border-bottom:.25mm solid #555!important; background:#fff!important; color:#111!important; }
+  .thermal-ticket-header img { width:13mm!important; height:13mm!important; object-fit:contain!important; filter:grayscale(1) contrast(1.15); }
+  .thermal-ticket-header div { display:grid!important; gap:.4mm!important; min-width:0!important; }
+  .thermal-ticket-header strong { color:#111!important; font:700 13pt/1.15 "TH Sarabun New","Sarabun",sans-serif!important; white-space:normal!important; }
+  .thermal-ticket-header span { margin:0!important; color:#111!important; font:400 11pt/1.15 "TH Sarabun New","Sarabun",sans-serif!important; }
+  .appointment-print-slip .thermal-ticket-title { margin:2mm 0 1mm!important; color:#111!important; font:700 18pt/1.15 "TH Sarabun New","Sarabun",sans-serif!important; text-align:center!important; }
+  .appointment-print-slip .thermal-ticket-body { display:block!important; height:auto!important; min-height:0!important; margin:0!important; padding:0!important; overflow:visible!important; }
+  .thermal-ticket-body dl { display:grid!important; gap:0!important; margin:0!important; padding:0!important; }
+  .thermal-ticket-body dl>div { display:grid!important; grid-template-columns:minmax(12mm,38%) minmax(0,1fr)!important; gap:2mm!important; align-items:start!important; min-height:12mm!important; padding:2mm 0!important; border-bottom:.2mm dotted #aaa!important; }
+  .thermal-ticket-body dt { color:#333!important; font-size:12pt!important; line-height:1.2!important; }
+  .thermal-ticket-body dd { display:grid!important; gap:.7mm!important; margin:0!important; color:#111!important; font-size:14pt!important; font-weight:700!important; line-height:1.2!important; overflow-wrap:anywhere!important; }
+  .thermal-ticket-body dd span { color:#222!important; font-size:11.5pt!important; font-weight:400!important; line-height:1.2!important; }
+  .thermal-ticket-body dd strong { color:#111!important; font-size:13pt!important; font-weight:700!important; line-height:1.2!important; }
+  .thermal-ticket-body .ticket-barcode { display:grid!important; justify-items:center!important; gap:.8mm!important; margin:2mm 0 1.5mm!important; }
+  .thermal-ticket-body .ticket-barcode svg { display:block!important; width:50mm!important; max-width:100%!important; height:9mm!important; fill:#111!important; }
+  .thermal-ticket-body .ticket-barcode span { color:#111!important; font:400 8pt/1 monospace!important; letter-spacing:.3mm!important; }
+  .thermal-ticket-body footer { display:block!important; margin:3mm 0 0!important; padding:2mm 0 0!important; border:0!important; border-top:.25mm solid #555!important; background:#fff!important; color:#111!important; text-align:center!important; }
+  .thermal-ticket-body footer p { margin:0 0 .7mm!important; color:#111!important; font-size:10pt!important; line-height:1.2!important; }
+  .thermal-ticket-body footer address { margin:1mm 0 0!important; color:#333!important; font-size:9pt!important; font-style:normal!important; line-height:1.2!important; }
+}

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { THAI_BUDDHIST_LOCALE, THAI_TIME_ZONE } from "@/lib/thai-date";
 import { Icd10Combobox } from "@/components/icd10-combobox";
 import { TreatmentRecordActions } from "@/components/treatment-record-actions";
@@ -108,6 +109,7 @@ function PrintableAppointmentHistory({records,treatments,patient,onChanged,onMar
   const router=useRouter();
   const [filter,setFilter]=useState<"all"|"scheduled"|"completed"|"no_show">("all");
   const [printJob,setPrintJob]=useState<{appointment:Appointment;printedAt:Date}|null>(null);
+  const [paperWidth,setPaperWidth]=useState(80);
   const [closingMissed,setClosingMissed]=useState(false);
   const scheduled=records.filter(item=>item.status==="scheduled").length;
   const completed=records.filter(item=>item.status==="completed").length;
@@ -115,12 +117,25 @@ function PrintableAppointmentHistory({records,treatments,patient,onChanged,onMar
   const visible=records.filter(item=>filter==="all"||item.status===filter);
   function printAppointment(appointment:Appointment){
     setPrintJob({appointment,printedAt:new Date()});
-    void printWhenReady();
+  }
+  async function confirmAppointmentPrint(){
+    if(!printJob)return;
+    const appointment=printJob.appointment;
+    const charsPerLine=Math.max(12,Math.floor((paperWidth-10)*.42));
+    const textLengths=[`${patient.title}${patient.firstName} ${patient.lastName}`,new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE,{weekday:"long",day:"numeric",month:"long",year:"numeric",timeZone:THAI_TIME_ZONE}).format(new Date(appointment.scheduledAt)),appointment.clinician||"รอระบุ",appointment.reason,appointment.department,appointment.notes||"","ต้องมาลงทะเบียนภายในเวลาไม่เกิน 15:00 น. เท่านั้น","ควรมาถึงก่อนเวลานัดอย่างน้อย 30 นาที","สถานพยาบาล มหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตกำแพงแสน เลขที่ 1 หมู่ 6 ถนนมาลัยแมน ตำบลกำแพงแสน อำเภอกำแพงแสน จังหวัดนครปฐม 73140"];
+    const contentHeight=Math.max(145,Math.ceil(45+textLengths.reduce((total,text)=>total+Math.max(1,Math.ceil(text.length/charsPerLine))*5.2,0)));
+    document.documentElement.style.setProperty("--appointment-paper-width",`${paperWidth}mm`);
+    document.documentElement.style.setProperty("--appointment-paper-height",`${contentHeight}mm`);
+    let pageSizeStyle=document.getElementById("appointment-paper-page-size") as HTMLStyleElement|null;
+    if(!pageSizeStyle){pageSizeStyle=document.createElement("style");pageSizeStyle.id="appointment-paper-page-size";document.head.appendChild(pageSizeStyle);}
+    pageSizeStyle.textContent=`@page appointment-slip { size: ${paperWidth}mm ${contentHeight}mm; margin: 0; }`;
+    await printWhenReady();
+    setPrintJob(null);
   }
   async function closeMissedAppointments(){setClosingMissed(true);onError("");try{const response=await fetch("/api/appointments/mark-no-shows",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({patientId:patient.id})}),result=await response.json();if(!response.ok)throw new Error(result.error||"สรุปสถานะนัดที่ขาดไม่สำเร็จ");await onMarkedNoShows(result.updatedCount?`เปลี่ยนสถานะนัดที่พ้นกำหนดเป็น “ขาดนัดหมาย” ${result.updatedCount} รายการแล้ว`:"ตรวจสอบแล้ว ไม่มีนัดที่ต้องเปลี่ยนสถานะ");}catch(reason){onError(reason instanceof Error?reason.message:"สรุปสถานะนัดที่ขาดไม่สำเร็จ");}finally{setClosingMissed(false);}}
   return <div className="appointment-history">{!readOnly&&<div className="appointment-close-missed"><div><strong>สรุปสถานะนัดที่พ้นกำหนด</strong><span>เปลี่ยนรายการนัดของผู้ป่วยรายนี้ที่ยังรอและเลยเวลา 15:30 น. เป็นขาดนัดหมาย</span></div><button type="button" className="secondary-button" onClick={()=>void closeMissedAppointments()} disabled={closingMissed}>{closingMissed?"กำลังตรวจสอบ...":"สรุปนัดที่ขาด"}</button></div>}<div className="appointment-filters"><span>กรองสถานะ:</span><button type="button" aria-pressed={filter==="all"} onClick={()=>setFilter("all")}>ทั้งหมด ({records.length})</button><button type="button" aria-pressed={filter==="scheduled"} onClick={()=>setFilter("scheduled")}>รอมาตามนัด ({scheduled})</button><button type="button" aria-pressed={filter==="completed"} onClick={()=>setFilter("completed")}>เสร็จสิ้น ({completed})</button><button type="button" aria-pressed={filter==="no_show"} onClick={()=>setFilter("no_show")}>ขาดนัดหมาย ({missed})</button></div>
     {visible.length===0?<div className="record-empty"><strong>ไม่พบรายการนัดหมาย</strong><span>เลือกสถานะอื่นหรือสร้างการนัดหมายใหม่</span></div>:<div className="appointment-list">{visible.map(item=>{const date=new Date(item.scheduledAt);const done=item.status==="completed",missed=item.status==="no_show",linkedTreatment=treatments.find(record=>record.appointmentId===item.id);return <article className={done?"appointment-card completed":missed?"appointment-card missed":"appointment-card upcoming"} key={item.id}><time><small>{new Intl.DateTimeFormat("th-TH",{month:"short",timeZone:THAI_TIME_ZONE}).format(date)}</small><strong>{new Intl.DateTimeFormat("th-TH",{day:"numeric",timeZone:THAI_TIME_ZONE}).format(date)}</strong><span>{new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE,{year:"numeric",timeZone:THAI_TIME_ZONE}).format(date)}</span></time><div className="appointment-info"><div><h3>{item.reason}</h3><span className={done?"appointment-state done":missed?"appointment-state missed":"appointment-state"}>{done?"ตรวจเสร็จสิ้น":missed?"ขาดนัดหมาย":"ยืนยันการนัดแล้ว"}</span></div><dl><div><dt>◷ เวลา</dt><dd>{new Intl.DateTimeFormat("th-TH",{hour:"2-digit",minute:"2-digit",timeZone:THAI_TIME_ZONE}).format(date)} น.</dd></div><div><dt>♧ คลินิก</dt><dd>{item.department}</dd></div><div><dt>♟ แพทย์</dt><dd>{item.clinician||"รอระบุ"}</dd></div><div><dt>□ หมายเหตุ</dt><dd>{item.notes&&`${item.notes} · `}ต้องมาลงทะเบียนภายในเวลาไม่เกิน 15:00 น. เท่านั้น</dd></div>{done&&item.result&&<div className="appointment-result"><dt>● ผลการตรวจ</dt><dd>{item.result}</dd></div>}</dl></div><div className="appointment-actions">{done?(linkedTreatment?<button type="button" className="secondary-button" onClick={()=>router.push(`/patients/${patient.id}?tab=treatments&treatmentId=${linkedTreatment.id}`,{scroll:false})}>ดูบันทึกการรักษาครั้งนี้</button>:<span className="unlinked-treatment-note">ไม่พบบันทึกที่เชื่อมกับนัดหมายนี้</span>):missed?<span className="missed-appointment-note">ระบบบันทึกสถานะขาดนัดหมายแล้ว</span>:<>{!readOnly&&<RescheduleAppointmentButton patientId={patient.id} appointment={item} onChanged={onChanged}/>}<button type="button" className="primary-button" onClick={()=>printAppointment(item)}>พิมพ์ใบนัด</button></>}</div></article>})}</div>}
-    {printJob&&<AppointmentSlip patient={patient} appointment={printJob.appointment} printedAt={printJob.printedAt}/>}</div>;
+    {printJob&&<AppointmentSlip patient={patient} appointment={printJob.appointment} printedAt={printJob.printedAt}/>}{printJob&&typeof document!=="undefined"&&createPortal(<div className="record-modal-backdrop appointment-print-setup-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setPrintJob(null);}}><section className="record-modal appointment-print-setup" role="dialog" aria-modal="true" aria-labelledby="appointment-print-title" onMouseDown={event=>event.stopPropagation()}><header><div><h2 id="appointment-print-title">ตั้งค่ากระดาษใบนัดหมาย</h2><p>เลือกระยะความกว้างให้ตรงกับม้วนกระดาษในเครื่องพิมพ์</p></div><button type="button" aria-label="ปิด" onClick={()=>setPrintJob(null)}>×</button></header><div className="appointment-print-setup-body"><label htmlFor="appointment-paper-width">ความกว้างกระดาษ <strong>{paperWidth} มม.</strong></label><input id="appointment-paper-width" type="range" min="50" max="80" step="1" value={paperWidth} onChange={event=>setPaperWidth(Number(event.target.value))}/><div className="appointment-paper-range"><span>50 มม.</span><span>80 มม.</span></div><p>ตัวอักษรจะปรับตามความกว้าง และความยาวหน้ากระดาษจะคำนวณตามเนื้อหา ก่อนกดพิมพ์ให้เลือกขนาดกระดาษที่ตรงกันในหน้าต่างเครื่องพิมพ์ด้วย</p></div><div className="form-actions"><button type="button" className="secondary-button" onClick={()=>setPrintJob(null)}>ยกเลิก</button><button type="button" className="primary-button" onClick={()=>void confirmAppointmentPrint()}>ดำเนินการพิมพ์</button></div></section></div>,document.body)}</div>;
 }
 
 function AppointmentSlip({patient,appointment,printedAt}:{patient:Patient;appointment:Appointment;printedAt:Date}) {
