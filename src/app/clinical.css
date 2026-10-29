@@ -1836,3 +1836,5 @@
   .thermal-ticket-body footer p { margin:0 0 .7mm!important; color:#111!important; font-size:10pt!important; line-height:1.2!important; }
   .thermal-ticket-body footer address { margin:1mm 0 0!important; color:#333!important; font-size:9pt!important; font-style:normal!important; line-height:1.2!important; }
 }
+
+.notification-row:has(input:disabled){cursor:default}.notification-row input:disabled+span{opacity:.55}

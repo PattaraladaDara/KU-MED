@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 import { getSupportContact } from "@/lib/support-contact";
 
 type AccountEmail={email:string;firstName:string;lastName:string;username:string};
+type AccessExpiryEmail=AccountEmail&{role:string;expiresAt:Date};
 
 const clean=(value?:string)=>value?.trim()||"";
 const escapeHtml=(value:string)=>value.replace(/[&<>"']/g,character=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[character]!));
@@ -49,4 +50,13 @@ export async function sendAccountDecisionEmail(account:AccountEmail,status:strin
   const contact=contactNeeded?`<div style="margin:20px 0;padding:16px;border:1px solid #d9e3df;border-radius:10px;background:#f8faf9"><strong style="display:block;margin-bottom:8px">ติดต่อเจ้าหน้าที่เพื่อสอบถามหรือขอทบทวน</strong><div>${escapeHtml(support.name)}</div><div style="margin-top:5px"><strong>โทร:</strong> ${escapeHtml(support.phone)}</div>${support.email?`<div style="margin-top:5px"><strong>อีเมล:</strong> <a href="mailto:${escapeHtml(support.email)}">${escapeHtml(support.email)}</a></div>`:""}<div style="margin-top:5px;color:#65766f"><strong>เวลาทำการ:</strong> ${escapeHtml(support.hours)}</div><p style="margin:10px 0 0;color:#65766f;font-size:12px">กรุณาแจ้งชื่อผู้ใช้และชื่อ–นามสกุลที่ลงทะเบียน โดยไม่ต้องส่งรหัสผ่านหรือรหัส OTP ให้เจ้าหน้าที่</p></div>`:"";
   const statusBanner=`<div style="margin:0 0 18px;padding:13px 16px;border-radius:10px;background:${copy.background};color:${copy.color};font-size:17px;font-weight:700">สถานะ: ${escapeHtml(copy.label)}</div>`;
   await send(account.email,`${copy.subject} • ${timestamp}`,frame(copy.heading,`${statusBanner}<p>เรียน ${escapeHtml(account.firstName)} ${escapeHtml(account.lastName)}</p><p>${copy.detail}</p>${reason}${contact}<p><strong>ชื่อผู้ใช้:</strong> ${escapeHtml(account.username)}</p><p style="color:#71817c;font-size:12px">อัปเดตเมื่อ ${escapeHtml(timestamp)}</p><p><a href="${escapeHtml(appUrl)}/login" style="display:inline-block;padding:11px 18px;border-radius:8px;background:${copy.color};color:#fff;text-decoration:none">เข้าสู่ระบบ KU-MED</a></p>`));
+}
+
+export async function sendAccessExpiryReminderEmail(account:AccessExpiryEmail){
+  const timestamp=sentTime();
+  const expiresAt=new Intl.DateTimeFormat("th-TH-u-ca-buddhist",{dateStyle:"long",timeStyle:"short",timeZone:"Asia/Bangkok"}).format(account.expiresAt);
+  const roles:Record<string,string>={doctor:"แพทย์",staff:"เจ้าหน้าที่เวชระเบียน",nurse:"พยาบาล",pharmacist:"เภสัชกร",finance:"เจ้าหน้าที่การเงิน",executive:"ผู้บริหารสถานพยาบาล",admin:"ผู้ดูแลระบบ"};
+  const appUrl=clean(process.env.APP_BASE_URL)||"http://localhost:3000";
+  const panel=`<div style="margin:0 0 18px;padding:13px 16px;border-radius:10px;background:#fff3d8;color:#875b0a;font-size:17px;font-weight:700">สิทธิ์ใช้งานกำลังจะหมดอายุในวันพรุ่งนี้</div>`;
+  await send(account.email,"แจ้งเตือนสิทธิ์ใช้งาน KU-MED ใกล้หมดอายุ",frame("แจ้งเตือนสิทธิ์ใช้งานใกล้หมดอายุ",`${panel}<p>เรียน ${escapeHtml(account.firstName)} ${escapeHtml(account.lastName)}</p><p>สิทธิ์บทบาท <strong>${escapeHtml(roles[account.role]||account.role)}</strong> ของบัญชีคุณจะสิ้นสุดในวันที่ <strong>${escapeHtml(expiresAt)}</strong></p><p>หากยังจำเป็นต้องใช้ระบบหลังวันดังกล่าว โปรดติดต่อผู้ดูแลระบบเพื่อขอต่ออายุสิทธิ์ก่อนวันที่หมดอายุ</p><p><strong>ชื่อผู้ใช้:</strong> ${escapeHtml(account.username)}</p><p><a href="${escapeHtml(appUrl)}/login" style="display:inline-block;padding:11px 18px;border-radius:8px;background:#956313;color:#fff;text-decoration:none">เข้าสู่ระบบ KU-MED</a></p><p style="color:#71817c;font-size:12px">แจ้งเตือนเมื่อ ${escapeHtml(timestamp)}</p>`));
 }

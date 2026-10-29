@@ -7,7 +7,11 @@ export const runtime = "nodejs";
 
 const fallbackAdmin = "demo-admin";
 const label = (role:string) => ({admin:"ผู้ดูแลระบบหลัก",doctor:"แพทย์",staff:"เจ้าหน้าที่เวชระเบียน",nurse:"พยาบาล",pharmacist:"เภสัชกร",finance:"เจ้าหน้าที่การเงิน",executive:"ผู้บริหารสถานพยาบาล"}[role]||role);
-const canEditContact = (account:{role:string;authProvider:string}|null) => account?.role === "doctor" && account.authProvider === "local";
+const isKuManagedEmail = (email:string) => {
+  const domain=email.trim().toLowerCase().split("@").at(-1)||"";
+  return domain==="ku.th"||domain.endsWith(".ku.th");
+};
+const isKuAllLogin = (authProvider:string,email:string) => authProvider!=="local"||isKuManagedEmail(email);
 
 export async function GET(request:NextRequest) {
   const auth = requirePermission(request, ["settings:own", "settings:manage"]);
@@ -28,7 +32,8 @@ export async function GET(request:NextRequest) {
       notifyMonthlyReports: stored?.notifyMonthlyReports ?? true,
       notifySecurity: stored?.notifySecurity ?? true,
     };
-    return NextResponse.json({settings,policy:{authProvider:account?.authProvider || "local",canEditContact:canEditContact(account)}});
+    const authProvider=account?.authProvider||"local",emailLocked=isKuAllLogin(authProvider,settings.email);
+    return NextResponse.json({settings,policy:{authProvider,emailLocked,canEditEmail:!emailLocked,canEditPhone:true}});
   } catch {
     return NextResponse.json({error:"ไม่สามารถโหลดการตั้งค่าได้"},{status:503});
   }
@@ -44,19 +49,22 @@ export async function PUT(request:NextRequest) {
     const db = getDb();
     const account = userKey === fallbackAdmin ? null : await db.staffAccount.findUnique({where:{username:userKey}});
     const stored = await db.userSettings.findUnique({where:{userKey}});
-    const contactEditable = canEditContact(account);
+    const existingEmail = account?.email || stored?.email || "";
+    const authProvider=account?.authProvider||"local",canEditEmail=!isKuAllLogin(authProvider,existingEmail);
     const requestedEmail = text(body.email).toLowerCase();
     const requestedPhone = text(body.phone);
-    if (contactEditable && (!requestedEmail || !requestedPhone)) {
-      return NextResponse.json({error:"กรุณากรอกอีเมลและหมายเลขโทรศัพท์"},{status:400});
+    if (canEditEmail && !requestedEmail) return NextResponse.json({error:"กรุณากรอกอีเมล"},{status:400});
+    if (canEditEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requestedEmail)) {
+      return NextResponse.json({error:"รูปแบบอีเมลไม่ถูกต้อง"},{status:400});
     }
+    if (!requestedPhone) return NextResponse.json({error:"กรุณากรอกหมายเลขโทรศัพท์"},{status:400});
     const displayName = account ? `${account.firstName} ${account.lastName}` : stored?.displayName || "ผู้ดูแลระบบหลัก";
     const role = label(account?.role || "admin");
-    const email = contactEditable ? requestedEmail : account?.email || stored?.email || "";
-    const phone = contactEditable ? requestedPhone : account?.phone || stored?.phone || "";
-    const settingsData = {displayName,role,email,phone,notifyAnnouncements:body.notifyAnnouncements === true,notifyMonthlyReports:body.notifyMonthlyReports === true,notifySecurity:body.notifySecurity === true};
+    const email = canEditEmail ? requestedEmail : existingEmail;
+    const phone = requestedPhone;
+    const settingsData = {displayName,role,email,phone,notifyAnnouncements:stored?.notifyAnnouncements ?? true,notifyMonthlyReports:stored?.notifyMonthlyReports ?? true,notifySecurity:stored?.notifySecurity ?? true};
     const settings = await db.$transaction(async tx => {
-      if (account && contactEditable) await tx.staffAccount.update({where:{id:account.id},data:{email,phone}});
+      if (account) await tx.staffAccount.update({where:{id:account.id},data:{...(canEditEmail?{email}:{}),phone}});
       return tx.userSettings.upsert({where:{userKey},create:{userKey,...settingsData},update:settingsData});
     });
     return NextResponse.json({settings});
