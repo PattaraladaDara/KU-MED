@@ -13,7 +13,7 @@ const paymentTime=(value:string)=>new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE,{
 const dateTime=(value:string)=>new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE,{dateStyle:"medium",timeStyle:"short",timeZone:THAI_TIME_ZONE}).format(new Date(value));
 function PaymentDateBadge({value}:{value:string}){const date=new Date(value);return <time className="payment-date-badge" dateTime={date.toISOString()}><small>{new Intl.DateTimeFormat("th-TH",{month:"short",timeZone:THAI_TIME_ZONE}).format(date)}</small><strong>{new Intl.DateTimeFormat("th-TH",{day:"numeric",timeZone:THAI_TIME_ZONE}).format(date)}</strong><span>พ.ศ. {new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE,{year:"numeric",timeZone:THAI_TIME_ZONE}).format(date)}</span></time>}
 
-function ReceiptPrintButton({patientId,paymentId}:{patientId:string;paymentId:string}){
+export function ReceiptPrintButton({patientId,paymentId}:{patientId:string;paymentId:string}){
   const[printing,setPrinting]=useState(false);
   function printReceipt(){
     setPrinting(true);

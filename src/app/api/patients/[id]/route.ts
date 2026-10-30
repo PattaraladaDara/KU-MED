@@ -53,29 +53,36 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Keep the API response aligned with each role's work. Hiding a tab in the
     // client is not an access control boundary.
     const role = auth.session!.role;
+    const generalInfo = {
+      id: patient.id, citizenId: patient.citizenId, studentId: patient.studentId, status: patient.status,
+      title: patient.title, firstName: patient.firstName, lastName: patient.lastName, birthDate: patient.birthDate,
+      gender: patient.gender, bloodGroup: patient.bloodGroup, faculty: patient.faculty, major: patient.major,
+      studyYear: patient.studyYear, phone: patient.phone, email: patient.email, homeAddress: patient.homeAddress,
+      currentAddress: patient.currentAddress, coverage: patient.coverage, coverageStatus: patient.coverageStatus,
+      allergyNotes: patient.allergyNotes, statusChanges: patient.statusChanges,
+    };
     if (role === "pharmacist") {
-      const { id: patientId, title, firstName, lastName, studentId, status, allergyNotes } = patient;
-      return NextResponse.json({ patient: { id: patientId, title, firstName, lastName, studentId, status, allergyNotes, treatments: [], triageAssessments: [], appointments: [], payments: [], statusChanges: [] } });
+      return NextResponse.json({ patient: { ...generalInfo, treatments: [], triageAssessments: [], appointments: [], payments: [] } });
     }
     if (role === "finance") {
-      const { id: patientId, title, firstName, lastName, studentId, status, faculty, coverage, coverageStatus } = patient;
       return NextResponse.json({ patient: {
-        id: patientId, title, firstName, lastName, studentId, status, faculty, coverage, coverageStatus,
+        ...generalInfo,
         // Finance needs prescription totals to create a bill, not clinical notes.
         treatments: patient.treatments.map(({ id, visitedAt, medicationOrders }) => ({ id, visitedAt, medicationOrders })),
-        payments: patient.payments, triageAssessments: [], appointments: [], statusChanges: [],
+        payments: patient.payments, triageAssessments: [], appointments: [],
       } });
     }
     if (role === "staff") {
-      return NextResponse.json({ patient: { ...patient, treatments: [], triageAssessments: [], payments: [] } });
+      return NextResponse.json({ patient: { ...generalInfo, appointments: patient.appointments, treatments: [], triageAssessments: [], payments: [] } });
     }
     if (role === "doctor") {
-      const { id: patientId, title, firstName, lastName, studentId, status, birthDate, gender, bloodGroup, faculty, major, studyYear, phone, email, coverage, coverageStatus, allergyNotes } = patient;
       return NextResponse.json({ patient: {
-        id: patientId, title, firstName, lastName, studentId, status, birthDate, gender, bloodGroup, faculty, major, studyYear, phone, email, coverage, coverageStatus, allergyNotes,
-        treatments: patient.treatments, triageAssessments: patient.triageAssessments, appointments: patient.appointments, payments: [], statusChanges: [],
+        ...generalInfo, treatments: patient.treatments, triageAssessments: patient.triageAssessments, appointments: patient.appointments, payments: [],
       } });
     }
+    // Executives get the same complete patient record as administrators, but
+    // their role permissions remain read-only and do not grant document print.
+    if (role === "executive") return NextResponse.json({ patient });
     return NextResponse.json({ patient });
   } catch { return NextResponse.json({ error:"ไม่สามารถโหลดข้อมูลได้" },{status:503}); }
 }
@@ -265,6 +272,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id:string }> }) {
+  const auth = requirePermission(request, "clinical:delete");
+  if (auth.response) return auth.response;
   try {
     const {id}=await params;const body=await request.json() as Record<string,unknown>;const recordId=text(body.recordId);
     const deleted=await getDb().treatmentRecord.deleteMany({where:{id:recordId,patientId:id}});

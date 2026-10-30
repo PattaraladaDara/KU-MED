@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Icd10Combobox } from "@/components/icd10-combobox";
 import { MedicalCertificate } from "@/components/medical-certificate";
@@ -14,8 +14,9 @@ type PatientData={id:string;title:string;firstName:string;lastName:string;citize
 const formatDateTime=(value:string)=>new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE,{dateStyle:"long",timeStyle:"short",timeZone:THAI_TIME_ZONE}).format(new Date(value));
 const localDateTime=(value:string)=>new Intl.DateTimeFormat("sv-SE",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false,timeZone:THAI_TIME_ZONE}).format(new Date(value)).replace(" ","T");
 
-export function TreatmentRecordActions({patient,record,onChanged,allowDelete=false,canIssueCertificate=false}:{patient:PatientData;record:RecordData;onChanged:(message:string)=>Promise<void>;allowDelete?:boolean;canIssueCertificate?:boolean}){
+export function TreatmentRecordActions({patient,record,onChanged,allowDelete=false,canIssueCertificate=false,openForEdit=false}:{patient:PatientData;record:RecordData;onChanged:(message:string)=>Promise<void>;allowDelete?:boolean;canIssueCertificate?:boolean;openForEdit?:boolean}){
   const[mode,setMode]=useState<"edit"|"summary"|"certificate"|null>(null);const[saving,setSaving]=useState(false);const[error,setError]=useState("");
+  useEffect(()=>{if(openForEdit)setMode("edit");},[openForEdit]);
   const structuredMedicationOrders=parseMedicationOrderSnapshots(record.medicationOrders);
   const medicationLines=medicationOrderDisplayLines(record.medicationOrders);
   async function update(event:FormEvent<HTMLFormElement>){event.preventDefault();setSaving(true);setError("");const body={...Object.fromEntries(new FormData(event.currentTarget)),recordId:record.id};try{const response=await fetch(`/api/patients/${patient.id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const result=await response.json();if(!response.ok)throw new Error(result.error||"แก้ไขข้อมูลไม่สำเร็จ");setMode(null);await onChanged("แก้ไขประวัติการรักษาเรียบร้อยแล้ว");}catch(reason){setError(reason instanceof Error?reason.message:"แก้ไขข้อมูลไม่สำเร็จ");}finally{setSaving(false);}}

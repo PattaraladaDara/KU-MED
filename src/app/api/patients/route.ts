@@ -22,11 +22,11 @@ export async function GET(request: NextRequest) {
       orderBy: { updatedAt: "desc" }, take: query ? 500 : 20,
     });
     const normalized=normalizeSearch(query);const tokens=normalized.split(" ").filter(Boolean);
-    const maySearchSensitiveFields = ["admin", "staff", "nurse"].includes(auth.session!.role);
+    const maySearchSensitiveFields = ["admin", "staff", "nurse", "executive"].includes(auth.session!.role);
     const matches=query?candidates.map(patient=>{const fields=[{value:patient.studentId,weight:700},{value:`${patient.firstName} ${patient.lastName}`,weight:650},{value:patient.firstName,weight:600},{value:patient.lastName,weight:600},{value:patient.faculty,weight:250},{value:patient.major,weight:220},{value:patient.status,weight:180},...(maySearchSensitiveFields?[{value:patient.citizenId,weight:700},{value:patient.email,weight:450},{value:patient.phone,weight:450}]:[])];const scores=tokens.map(token=>tokenScore(token,fields));return{patient,score:scores.reduce((sum,score)=>sum+score,0),matched:scores.every(score=>score>0)};}).filter(item=>item.matched).sort((left,right)=>right.score-left.score||right.patient.updatedAt.getTime()-left.patient.updatedAt.getTime()).slice(0,20).map(item=>item.patient):candidates;
     // Search is for finding a chart, not for exporting a directory of PII or
     // clinical history. Sensitive identifiers and treatment records stay server-side.
-    const maySeeContact = ["admin", "staff", "nurse"].includes(auth.session!.role);
+    const maySeeContact = ["admin", "staff", "nurse", "executive"].includes(auth.session!.role);
     const patients = matches.map(({ id, title, firstName, lastName, studentId, status, faculty, major, studyYear, email }) => ({
       id, title, firstName, lastName, studentId, status, faculty, major, studyYear,
       ...(maySeeContact ? { email } : {}),
@@ -38,6 +38,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = requirePermission(request, "patients:register");
+  if (auth.response) return auth.response;
   try {
     const body = await request.json() as Record<string, unknown>;
     const required = ["citizenId", "studentId", "status", "title", "firstName", "lastName", "birthDate", "gender", "faculty", "major", "studyYear", "phone", "email", "coverage", "coverageStatus"];

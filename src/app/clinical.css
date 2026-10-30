@@ -1401,6 +1401,15 @@
 .patient-document-actions article strong,.document-registry>h3 { color:#173d32; }
 .patient-document-actions article span { color:#667b73; }
 .document-registry { margin-top:22px; }
+.document-registry.document-registry--appointment { --document-accent:#2878b8; --document-tint:#f1f7fc; }
+.document-registry.document-registry--summary { --document-accent:#27856d; --document-tint:#f1f8f5; }
+.document-registry.document-registry--certificate { --document-accent:#7657a6; --document-tint:#f7f4fb; }
+.document-registry.document-registry--medication { --document-accent:#c27a19; --document-tint:#fcf7ee; }
+.document-registry.document-registry--receipt { --document-accent:#367d88; --document-tint:#f1f8f9; }
+.document-registry[class*="document-registry--"] { padding:18px; border:1px solid color-mix(in srgb,var(--document-accent) 30%,white); border-left:5px solid var(--document-accent); border-radius:14px; background:var(--document-tint); }
+.document-registry[class*="document-registry--"]>h3 { display:flex; align-items:center; gap:9px; color:var(--document-accent); }
+.document-registry[class*="document-registry--"]>h3::before { content:""; width:9px; height:9px; flex:none; border-radius:50%; background:var(--document-accent); }
+.document-registry[class*="document-registry--"] .record-list article { border-color:color-mix(in srgb,var(--document-accent) 18%,white); background:#fff; }
 .document-registry>h3 { margin:0 0 12px; }
 
 .triage-history { display:grid; gap:14px; margin-top:20px; }
@@ -1411,7 +1420,6 @@
 
 .record-form input[readonly],.record-form textarea[readonly] { background:#f1f5f3; color:#496158; cursor:not-allowed; }
 .triage-prefill-banner{grid-column:1/-1;display:grid;gap:4px;padding:13px 16px;border:1px solid #a8ddc9;border-left:4px solid #168264;border-radius:10px;background:#effaf5;color:#205b4b}.triage-prefill-banner strong{font-size:14px}.triage-prefill-banner span{color:#52766b;font-size:12px;line-height:1.6}.triage-prefill-banner.is-empty{border-color:#ead6a9;border-left-color:#bd841e;background:#fff9e9;color:#795b1f}.triage-prefill-banner.is-empty span{color:#806e4b}
-.icd10-admin-page{display:grid;gap:18px}.icd10-admin-header,.icd10-admin-card,.icd10-admin-list{padding:22px 24px}.icd10-admin-header{display:flex;justify-content:space-between;align-items:center;gap:20px}.icd10-admin-header>div>span{color:#08785e;font-size:13px;font-weight:700}.icd10-admin-header h1{margin:4px 0;font-size:24px}.icd10-admin-header p,.icd10-admin-card>p,.icd10-admin-list>header span{color:#687d75;font-size:13px}.icd10-admin-header>b{flex:none;padding:10px 14px;border-radius:999px;background:#e8f6f0;color:#08785e}.icd10-admin-card h2,.icd10-admin-list h2{font-size:17px}.icd10-admin-form{display:grid;grid-template-columns:minmax(160px,.7fr) minmax(250px,1.5fr) auto;align-items:end;gap:12px;margin-top:16px}.icd10-admin-form label{display:grid;gap:6px;color:#3d554d;font-size:12px;font-weight:700}.icd10-admin-form input{width:100%;min-height:44px;padding:10px 12px;border:1px solid #cfddd7;border-radius:9px;background:white;font:inherit}.icd10-admin-form>div{display:flex;gap:8px}.icd10-admin-list>header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px}.icd10-admin-list>div{display:grid;gap:8px}.icd10-admin-list article{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:10px;padding:12px;border:1px solid #e1eae5;border-radius:10px}.icd10-admin-list article>div{display:grid;gap:4px}.icd10-admin-list article small{color:#75867f;font-size:11px}.icd10-admin-list article button{min-height:36px}.icd10-admin-list>p{color:#71817b}@media(max-width:760px){.icd10-admin-form{grid-template-columns:1fr}.icd10-admin-form>div{flex-wrap:wrap}.icd10-admin-list>header,.icd10-admin-header{align-items:flex-start;flex-direction:column}.icd10-admin-list article{grid-template-columns:minmax(0,1fr) auto}.icd10-admin-list article button{width:100%}}
 
 .medication-workspace>header{margin-bottom:18px}.medication-workspace>header h2{color:#173d32}.medication-workspace>header p{margin-top:4px;color:#687d75}.medication-dispense-list{display:grid;gap:14px}.medication-dispense-card{padding:18px;border:1px solid #d9e5e0;border-left:4px solid #c08a2c;border-radius:13px;background:#fff}.medication-dispense-card.status-ready{border-left-color:#3181b9}.medication-dispense-card.status-dispensed{border-left-color:#087158;background:#f7fcfa}.medication-dispense-card.status-unable{border-left-color:#c94d43}.medication-dispense-card>header{display:flex;justify-content:space-between;gap:16px}.medication-dispense-card>header div{display:grid;gap:3px}.medication-dispense-card>header span,.medication-dispense-card>small{color:#6c7e78}.medication-dispense-card>header>b{align-self:start;padding:6px 10px;border-radius:999px;background:#fff4dc;color:#91601b;font-size:11px}.medication-dispense-card.status-ready>header>b{background:#e7f3fb;color:#26678f}.medication-dispense-card.status-dispensed>header>b{background:#dff5ec;color:#087158}.medication-dispense-card.status-unable>header>b{background:#fff0ee;color:#ae3d34}.medication-dispense-card>p{margin:14px 0}.medication-dispense-card>section{display:grid;gap:6px;padding:14px;border-radius:10px;background:#f4f8f6}.medication-dispense-card>small{display:block;margin-top:11px}.medication-actions{display:grid;grid-template-columns:220px minmax(260px,1fr) auto;align-items:end;gap:12px;margin-top:16px}.medication-actions label{display:grid;gap:5px}.medication-actions label>span{font-size:11px;font-weight:700;color:#3d554d}.medication-actions select,.medication-actions textarea{width:100%;min-height:42px;padding:9px 11px;border:1px solid #cddbd5;border-radius:8px;background:#fff;font:inherit}.medication-actions textarea{min-height:70px;resize:vertical}.medication-actions button{min-height:42px}@media(max-width:900px){.medication-actions{grid-template-columns:1fr}.medication-actions button{width:100%}}
 
@@ -1797,13 +1805,6 @@
   .registration-page .registration-section-heading p { padding-left:0; }
 }
 
-.appointment-print-setup { width:min(520px,100%); }
-.appointment-print-setup-body { display:grid; gap:8px; padding:22px 26px; }
-.appointment-print-setup-body label { display:flex; align-items:center; justify-content:space-between; gap:12px; color:#263b34; font-size:15px; font-weight:600; }
-.appointment-print-setup-body label strong { color:#08785e; font-size:20px; }
-.appointment-print-setup-body input[type="range"] { width:100%; accent-color:#08785e; }
-.appointment-paper-range { display:flex; justify-content:space-between; color:#6b7c76; font-size:12px; }
-.appointment-print-setup-body p { margin-top:7px; padding:12px 14px; border-radius:9px; background:#eef8f4; color:#49655c; font-size:12px; line-height:1.6; }
 .system-evaluation-dialog { width:min(430px,100%); padding:28px; text-align:center; }
 .system-evaluation-dialog-icon { display:grid; place-items:center; width:52px; height:52px; margin:2px auto 13px; border-radius:50%; background:#fff3d7; color:#9a6700; font-size:28px; font-weight:800; }
 .system-evaluation-dialog-icon.success { background:#e2f5ed; color:#08785e; }
@@ -1812,11 +1813,10 @@
 .system-evaluation-dialog .primary-button { min-width:120px; }
 .evaluation-results-page .report-summary-grid { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
 @media print {
-  @page appointment-slip { size:var(--appointment-paper-width,80mm) var(--appointment-paper-height,145mm); margin:0; }
-  html:has(.appointment-print-slip),body:has(.appointment-print-slip) { width:var(--appointment-paper-width,80mm)!important; height:var(--appointment-paper-height,145mm)!important; min-height:0!important; margin:0!important; padding:0!important; overflow:hidden!important; background:#fff!important; }
-  .appointment-print-setup-backdrop { display:none!important; }
+  @page appointment-slip { size:auto; margin:0; }
+  html:has(.appointment-print-slip),body:has(.appointment-print-slip) { width:auto!important; height:auto!important; min-height:0!important; margin:0!important; padding:0!important; overflow:visible!important; background:#fff!important; }
   .appointment-print-slip,.appointment-print-slip * { visibility:visible!important; }
-  .appointment-print-slip { position:fixed!important; inset:0!important; z-index:99999!important; box-sizing:border-box!important; display:flex!important; flex-direction:column!important; width:var(--appointment-paper-width,80mm)!important; height:var(--appointment-paper-height,145mm)!important; min-height:0!important; max-height:none!important; margin:0!important; padding:5mm 4mm!important; overflow:visible!important; border:0!important; background:#fff!important; color:#111!important; font-family:"TH Sarabun New","Sarabun",sans-serif!important; print-color-adjust:exact; -webkit-print-color-adjust:exact; break-inside:avoid!important; page-break-inside:avoid!important; page-break-after:avoid!important; }
+  .appointment-print-slip { position:relative!important; inset:auto!important; z-index:99999!important; box-sizing:border-box!important; display:flex!important; flex-direction:column!important; width:100%!important; height:auto!important; min-height:0!important; max-height:none!important; margin:0!important; padding:5mm 4mm!important; overflow:visible!important; border:0!important; background:#fff!important; color:#111!important; font-family:"TH Sarabun New","Sarabun",sans-serif!important; print-color-adjust:exact; -webkit-print-color-adjust:exact; break-inside:avoid!important; page-break-inside:avoid!important; page-break-after:avoid!important; }
   .appointment-print-slip::before { content:none!important; }
   .appointment-print-slip .thermal-ticket-header { display:flex!important; align-items:center!important; gap:3mm!important; min-height:16mm!important; height:auto!important; margin:0!important; padding:0 0 2mm!important; border:0!important; border-bottom:.25mm solid #555!important; background:#fff!important; color:#111!important; }
   .thermal-ticket-header img { width:13mm!important; height:13mm!important; object-fit:contain!important; filter:grayscale(1) contrast(1.15); }
@@ -1840,3 +1840,4 @@
 }
 
 .notification-row:has(input:disabled){cursor:default}.notification-row input:disabled+span{opacity:.55}
+.medication-correction-hint{margin:0;color:#8a6331;font-size:12px}.medication-correction-empty{margin:0;padding:10px 12px;border:1px dashed #9fcbb8;border-radius:8px;background:#eef8f3;color:#31594c;font-size:13px}

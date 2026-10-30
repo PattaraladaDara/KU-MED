@@ -7,7 +7,7 @@ export const rolePermissions:Record<SystemRole,readonly string[]>={
   nurse:["evaluations:view","dashboard:view","patients:view","intake:view","intake:write","clinical:view","clinical:write","medications:catalog:use","appointments:view","appointments:manage","medications:view","medications:manage","payments:view","payments:manage","service-catalog:use","documents:print","evaluations:submit","settings:own"],
   pharmacist:["evaluations:submit","evaluations:view","dashboard:view","patients:view","medications:view","medications:manage","medications:catalog:use","medications:catalog:manage","documents:print","settings:own"],
   finance:["evaluations:submit","evaluations:view","dashboard:view","patients:view","payments:view","payments:manage","reports:view","reports:export","finance:manage","service-catalog:use","service-catalog:manage","documents:print","settings:own"],
-  executive:["evaluations:submit","evaluations:view","dashboard:view","reports:view","reports:export","settings:own"],
+  executive:["evaluations:submit","evaluations:view","dashboard:view","patients:view","intake:view","clinical:view","appointments:view","medications:view","payments:view","reports:view","reports:export","settings:own"],
 };
 
 export function normalizeRole(role?:string):SystemRole{return role&&role in rolePermissions?role as SystemRole:"staff";}
